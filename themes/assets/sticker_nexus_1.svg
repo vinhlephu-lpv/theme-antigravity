@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 56" fill="none">
+  <defs>
+    <radialGradient id="nxOrbCore" cx="45%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="35%" stop-color="#7ef9ff"/>
+      <stop offset="72%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#0284c7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="nxBeam" x1="60" y1="2" x2="60" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38e8ff" stop-opacity="0"/>
+      <stop offset="45%" stop-color="#a5f3fc" stop-opacity="0.9"/>
+      <stop offset="55%" stop-color="#38e8ff" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#38e8ff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="nxGoldOrbit" x1="12" y1="28" x2="108" y2="28" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fde68a" stop-opacity="0.15"/>
+      <stop offset="50%" stop-color="#fde68a" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#38e8ff" stop-opacity="0.25"/>
+    </linearGradient>
+    <filter id="nxGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Vertical soul-stream wisps -->
+  <path d="M60 3 C56 15, 65 22, 60 30 C55 38, 64 46, 60 54" stroke="url(#nxBeam)" stroke-width="2.4" stroke-linecap="round" filter="url(#nxGlow)"/>
+  <path d="M60 6 C64 16, 56 23, 60 30 C64 37, 56 45, 60 52" stroke="#e0f2fe" stroke-width="0.9" stroke-opacity="0.7" stroke-linecap="round"/>
+  <!-- Sweeping cosmic orbit rings -->
+  <ellipse cx="60" cy="30" rx="46" ry="13" transform="rotate(-9 60 30)" stroke="url(#nxGoldOrbit)" stroke-width="1.2"/>
+  <ellipse cx="60" cy="30" rx="38" ry="11" transform="rotate(14 60 30)" stroke="#38e8ff" stroke-opacity="0.72" stroke-width="1.1"/>
+  <ellipse cx="60" cy="30" rx="26" ry="7.5" transform="rotate(-4 60 30)" stroke="#bae6fd" stroke-opacity="0.55" stroke-width="0.8" stroke-dasharray="4 3"/>
+  <!-- Glowing soul-orb center -->
+  <circle cx="60" cy="30" r="13" fill="url(#nxOrbCore)" filter="url(#nxGlow)"/>
+  <circle cx="60" cy="30" r="5.2" fill="#e0faff"/>
+  <circle cx="58.5" cy="28.5" r="1.8" fill="#ffffff"/>
+  <!-- Orbiting satellite light-nodes -->
+  <circle cx="20" cy="34" r="2.6" fill="#7ef9ff" filter="url(#nxGlow)"/>
+  <circle cx="98" cy="23" r="2.2" fill="#fde68a" filter="url(#nxGlow)"/>
+  <circle cx="88" cy="38" r="1.8" fill="#38e8ff" filter="url(#nxGlow)"/>
+  <circle cx="34" cy="20" r="1.6" fill="#fef08a"/>
+  <!-- Tiny 4-point celestial sparkles -->
+  <path d="M107 14 L108.2 17.5 L111.7 18.7 L108.2 19.9 L107 23.4 L105.8 19.9 L102.3 18.7 L105.8 17.5 Z" fill="#fde68a" opacity="0.9"/>
+  <path d="M12 21 L12.9 23.5 L15.4 24.4 L12.9 25.3 L12 27.8 L11.1 25.3 L8.6 24.4 L11.1 23.5 Z" fill="#7ef9ff" opacity="0.85"/>
+</svg>

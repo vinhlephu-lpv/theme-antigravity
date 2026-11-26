@@ -1,0 +1,18 @@
+# Build & runtime outputs
+dist/
+daemon.log
+daemon.pid
+theme_config.json
+silent-start.vbs
+TAWA_MOD_NOTES.md
+
+# Private user media uploads (keep only the sample task-completion voice)
+themes/user_media/*
+!themes/user_media/1795011944060_Tawa_voice_task_1.mp3
+
+# OS / Python / Node junk
+__pycache__/
+*.pyc
+node_modules/
+.DS_Store
+Thumbs.db
