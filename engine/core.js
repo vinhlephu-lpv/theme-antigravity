@@ -1360,7 +1360,7 @@
   }
 
   // ==================== MONOCHROME STARFIELD BOOT HUD + ARISU-TAWA VOICE ====================
-  function clearBootTimers() {
+  function clearBootTimers(keepFxCanvas = false) {
     if (Array.isArray(window.__AGY_BOOT_TIMERS__)) {
       window.__AGY_BOOT_TIMERS__.forEach((id) => clearTimeout(id));
     }
@@ -1372,6 +1372,18 @@
     if (window.__AGY_BOOT_HEX__) {
       clearInterval(window.__AGY_BOOT_HEX__);
       window.__AGY_BOOT_HEX__ = null;
+    }
+    if (window.__AGY_BOOT_TELEMETRY__) {
+      clearInterval(window.__AGY_BOOT_TELEMETRY__);
+      window.__AGY_BOOT_TELEMETRY__ = null;
+    }
+    if (window.__AGY_BOOT_CHARGE_RAF__) {
+      cancelAnimationFrame(window.__AGY_BOOT_CHARGE_RAF__);
+      window.__AGY_BOOT_CHARGE_RAF__ = null;
+    }
+    if (!keepFxCanvas && typeof window.__AGY_BOOT_FX_CLEANUP__ === 'function') {
+      try { window.__AGY_BOOT_FX_CLEANUP__(); } catch (e) {}
+      window.__AGY_BOOT_FX_CLEANUP__ = null;
     }
     if (window.__AGY_BOOT_KEYDOWN__) {
       window.removeEventListener('keydown', window.__AGY_BOOT_KEYDOWN__, true);
@@ -1505,17 +1517,91 @@
       }
       #agy-boot-overlay.hud-mode .agy-boot-vignette { opacity: 1; }
 
-      /* Corner sci-fi HUD targeting brackets */
-      #agy-boot-overlay .agy-boot-corner {
+      #agy-boot-overlay .agy-boot-fx-canvas {
         position: absolute;
-        width: 26px;
-        height: 26px;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 2;
+        pointer-events: none;
+      }
+
+      /* Left live kernel telemetry HUD */
+      #agy-boot-overlay .agy-telemetry-left {
+        position: absolute;
+        left: 30px;
+        top: 50%;
+        transform: translateY(-50%);
         z-index: 4;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 9px;
+        letter-spacing: 0.16em;
+        color: #94a3b8;
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.6s ease;
+        max-width: 190px;
       }
-      #agy-boot-overlay.hud-mode .agy-boot-corner { opacity: 0.65; }
+      #agy-boot-overlay.hud-mode .agy-telemetry-left { opacity: 0.72; }
+      #agy-boot-overlay .agy-tel-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      #agy-boot-overlay .agy-tel-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--boot-p);
+        box-shadow: 0 0 8px var(--boot-p);
+        animation: agyTelBlink 1.8s ease-in-out infinite;
+      }
+      #agy-boot-overlay .agy-tel-row:nth-child(2) .agy-tel-dot { background: var(--boot-gold); box-shadow: 0 0 8px var(--boot-gold); animation-delay: 0.35s; }
+      #agy-boot-overlay .agy-tel-row:nth-child(3) .agy-tel-dot { background: var(--boot-s); box-shadow: 0 0 8px var(--boot-s); animation-delay: 0.7s; }
+      @keyframes agyTelBlink { 0%, 100% { opacity: 0.35; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.15); } }
+      #agy-boot-overlay .agy-tel-bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 3px;
+        height: 18px;
+        margin-top: 4px;
+        padding-top: 6px;
+        border-top: 1px solid rgba(255,255,255,0.08);
+      }
+      #agy-boot-overlay .agy-tel-bars span {
+        width: 3px;
+        border-radius: 2px;
+        background: linear-gradient(180deg, var(--boot-p), var(--boot-s));
+        animation: agySpecWave 1.1s ease-in-out infinite alternate;
+      }
+      #agy-boot-overlay .agy-tel-bars span:nth-child(2) { animation-delay: 0.14s; }
+      #agy-boot-overlay .agy-tel-bars span:nth-child(3) { animation-delay: 0.28s; }
+      #agy-boot-overlay .agy-tel-bars span:nth-child(4) { animation-delay: 0.42s; }
+      #agy-boot-overlay .agy-tel-bars span:nth-child(5) { animation-delay: 0.56s; }
+      #agy-boot-overlay .agy-tel-bars span:nth-child(6) { animation-delay: 0.70s; }
+      #agy-boot-overlay .agy-tel-bars span:nth-child(7) { animation-delay: 0.84s; }
+      #agy-boot-overlay .agy-tel-bars span:nth-child(8) { animation-delay: 0.98s; }
+      @keyframes agySpecWave { 0% { height: 3px; opacity: 0.45; } 100% { height: 17px; opacity: 0.95; } }
+      @media (max-width: 900px) {
+        #agy-boot-overlay .agy-telemetry-left,
+        #agy-boot-overlay .agy-hex-column { display: none; }
+      }
+
+      /* Corner sci-fi HUD targeting brackets */
+      #agy-boot-overlay .agy-boot-corner {
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        z-index: 4;
+        pointer-events: none;
+        opacity: 0;
+        transform: scale(1.25);
+        transition: opacity 0.6s ease, transform 0.65s cubic-bezier(0.22,1,0.36,1);
+      }
+      #agy-boot-overlay.hud-mode .agy-boot-corner { opacity: 0.72; transform: scale(1); }
       #agy-boot-overlay .agy-boot-corner.tl { top: 14px; left: 16px; border-top: 1.5px solid var(--boot-p); border-left: 1.5px solid var(--boot-p); }
       #agy-boot-overlay .agy-boot-corner.tr { top: 14px; right: 16px; border-top: 1.5px solid var(--boot-gold); border-right: 1.5px solid var(--boot-gold); }
       #agy-boot-overlay .agy-boot-corner.bl { bottom: 14px; left: 16px; border-bottom: 1.5px solid var(--boot-s); border-left: 1.5px solid var(--boot-s); }
@@ -1602,23 +1688,64 @@
         position: relative; z-index: 5; flex: 1; display: flex; align-items: center; justify-content: center;
       }
       #agy-boot-overlay .agy-boot-stage {
-        display: none; flex-direction: column; align-items: center; text-align: center; max-width: 600px; width: 100%;
+        display: none; flex-direction: column; align-items: center; text-align: center; max-width: 620px; width: 100%;
       }
-      #agy-boot-overlay .agy-boot-stage.active { display: flex; }
+      #agy-boot-overlay .agy-boot-stage.active {
+        display: flex;
+        animation: agyStageEnter 0.46s cubic-bezier(0.22,1,0.36,1) both;
+      }
+      @keyframes agyStageEnter {
+        0% { opacity: 0; transform: scale(0.95) translateY(8px); filter: blur(3px); }
+        100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+      }
 
       #agy-boot-overlay .agy-stagger-char {
-        display: inline-block; opacity: 0; transform: translateY(3px); filter: blur(2px);
-        animation: agyCharFadeIn 0.24s cubic-bezier(0.22,1,0.36,1) forwards;
+        display: inline-block; opacity: 0; transform: translateY(4px) scale(0.92); filter: blur(2.5px);
+        animation: agyCharFadeIn 0.28s cubic-bezier(0.22,1,0.36,1) forwards;
       }
       #agy-boot-overlay .agy-stagger-space { display: inline-block; width: 0.32em; }
-      @keyframes agyCharFadeIn { to { opacity: 1; transform: translateY(0); filter: blur(0); } }
-      #agy-boot-overlay .wipe-out { opacity: 0; transition: opacity 0.28s ease; }
-      #agy-boot-overlay .stage-fade-out { opacity: 0 !important; transform: scale(1.08); transition: opacity 0.58s ease, transform 0.58s cubic-bezier(0.22,1,0.36,1); }
-      #agy-boot-overlay .agy-welcome-reveal { opacity: 0; transform: translateY(6px); animation: agyWelcomeIn 0.48s cubic-bezier(0.22,1,0.36,1) forwards; }
-      @keyframes agyWelcomeIn { to { opacity: 1; transform: translateY(0); } }
+      @keyframes agyCharFadeIn { to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
+      #agy-boot-overlay .wipe-out { opacity: 0; transform: scale(1.06); filter: blur(4px); transition: opacity 0.30s ease, transform 0.30s ease, filter 0.30s ease; }
+      #agy-boot-overlay .stage-fade-out { opacity: 0 !important; transform: scale(1.12); filter: blur(5px); transition: opacity 0.58s ease, transform 0.58s cubic-bezier(0.22,1,0.36,1), filter 0.58s ease; }
+      #agy-boot-overlay .agy-welcome-reveal { opacity: 0; transform: translateY(8px) scale(0.96); animation: agyWelcomeIn 0.52s cubic-bezier(0.22,1,0.36,1) forwards; }
+      @keyframes agyWelcomeIn { to { opacity: 1; transform: translateY(0) scale(1); } }
 
+      #agy-boot-overlay .agy-splash-emblem {
+        position: relative;
+        width: 136px;
+        height: 136px;
+        margin-bottom: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #agy-boot-overlay .agy-splash-ring-1 {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        animation: agySpinCW 6s linear infinite, agySplashFade 2.55s ease forwards;
+        filter: drop-shadow(0 0 12px var(--boot-p));
+      }
+      #agy-boot-overlay .agy-splash-ring-2 {
+        position: absolute; inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px);
+        animation: agySpinCCW 4.4s linear infinite, agySplashFade 2.55s ease forwards;
+      }
+      #agy-boot-overlay .agy-splash-laser {
+        position: absolute;
+        width: 240px;
+        height: 1.5px;
+        background: linear-gradient(90deg, transparent, var(--boot-p), var(--boot-gold), var(--boot-s), transparent);
+        box-shadow: 0 0 14px var(--boot-p);
+        opacity: 0;
+        transform: scaleX(0);
+        animation: agySplashLaser 2.2s cubic-bezier(0.22,1,0.36,1) 0.25s forwards;
+      }
+      @keyframes agySplashLaser {
+        0% { opacity: 0; transform: scaleX(0); }
+        32% { opacity: 0.9; transform: scaleX(1.15); }
+        75% { opacity: 0.5; transform: scaleX(1); }
+        100% { opacity: 0; transform: scaleX(0.3); }
+      }
       #agy-boot-overlay .agy-splash-logo {
-        width: 72px; height: 72px; object-fit: contain; margin-bottom: 16px; opacity: 0;
+        width: 72px; height: 72px; object-fit: contain; position: relative; z-index: 2; opacity: 0;
         filter: drop-shadow(0 0 24px var(--boot-glow)); animation: agySplashFade 2.5s ease forwards;
       }
       #agy-boot-overlay .agy-splash-wordmark {
@@ -1651,38 +1778,83 @@
         content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, var(--boot-p), var(--boot-s)); transform: scaleX(0); transform-origin: left center;
         transition: transform 0.28s cubic-bezier(0.22,1,0.36,1); z-index: 0;
       }
+      #agy-boot-overlay .agy-hud-btn::after {
+        content: ''; position: absolute; top: 0; bottom: 0; width: 42%; left: -55%;
+        background: linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.22) 50%, transparent 80%);
+        animation: agyBtnSheen 2.9s ease-in-out infinite;
+        pointer-events: none;
+        z-index: 0;
+      }
+      @keyframes agyBtnSheen { 0%, 60% { left: -55%; opacity: 0; } 70% { opacity: 1; } 100% { left: 125%; opacity: 0; } }
       #agy-boot-overlay .agy-hud-btn span { position: relative; z-index: 1; }
       #agy-boot-overlay .agy-hud-btn:hover::before,
       #agy-boot-overlay .agy-hud-btn.triggered::before { transform: scaleX(1); }
       #agy-boot-overlay .agy-hud-btn:hover,
-      #agy-boot-overlay .agy-hud-btn.triggered { color: #040710; border-color: var(--boot-gold); box-shadow: 0 0 26px var(--boot-glow), 0 0 14px var(--boot-sglow); }
+      #agy-boot-overlay .agy-hud-btn.triggered { color: #040710; border-color: var(--boot-gold); box-shadow: 0 0 26px var(--boot-glow), 0 0 14px var(--boot-sglow); transform: translateY(-1px); }
       #agy-boot-overlay .agy-hud-hint { margin-top: 13px; font-size: 9.5px; color: #7c8aa0; letter-spacing: 0.14em; }
 
       #agy-boot-overlay .agy-id-table {
-        width: 310px; padding: 14px 18px; margin-bottom: 24px; display: flex; flex-direction: column; gap: 8px; font-size: 10.5px;
-        background: rgba(6, 12, 26, 0.52); border: 1px solid rgba(255,255,255,0.12); border-left: 2px solid var(--boot-p); border-right: 2px solid var(--boot-s);
-        border-radius: 8px; box-shadow: 0 0 22px rgba(0,0,0,0.45), inset 0 0 16px var(--boot-glow);
+        position: relative;
+        overflow: hidden;
+        width: 320px; padding: 14px 18px; margin-bottom: 24px; display: flex; flex-direction: column; gap: 8px; font-size: 10.5px;
+        background: rgba(6, 12, 26, 0.56); border: 1px solid rgba(255,255,255,0.12); border-left: 2px solid var(--boot-p); border-right: 2px solid var(--boot-s);
+        border-radius: 8px; box-shadow: 0 0 24px rgba(0,0,0,0.48), inset 0 0 16px var(--boot-glow);
+      }
+      #agy-boot-overlay .agy-id-table::after {
+        content: "";
+        position: absolute;
+        left: 0; right: 0; height: 2px;
+        top: -4px;
+        background: linear-gradient(90deg, transparent, var(--boot-p), var(--boot-gold), transparent);
+        box-shadow: 0 0 12px var(--boot-p);
+        animation: agyBioScan 2.4s ease-in-out infinite;
+        pointer-events: none;
+      }
+      @keyframes agyBioScan {
+        0% { top: 0%; opacity: 0; }
+        15% { opacity: 0.9; }
+        85% { opacity: 0.9; }
+        100% { top: 100%; opacity: 0; }
       }
       #agy-boot-overlay .agy-id-row { display: flex; justify-content: space-between; align-items: center; }
       #agy-boot-overlay .agy-id-row span:first-child { color: #94a3b8; letter-spacing: 0.14em; }
       #agy-boot-overlay .agy-id-row span:last-child { color: var(--boot-gold); font-weight: 700; letter-spacing: 0.18em; text-shadow: 0 0 10px rgba(251,191,36,0.45); }
 
-      #agy-boot-overlay .agy-icon-morph-box { position: relative; width: 156px; height: 156px; margin: 6px 0 16px; display: flex; align-items: center; justify-content: center; }
+      #agy-boot-overlay .agy-icon-morph-box { position: relative; width: 172px; height: 172px; margin: 6px 0 12px; display: flex; align-items: center; justify-content: center; }
+      #agy-boot-overlay .agy-morph-pulse {
+        position: absolute; inset: 10px; border-radius: 50%;
+        border: 1px solid var(--boot-p);
+        opacity: 0; pointer-events: none;
+        animation: agyShockRipple 2.0s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      }
+      #agy-boot-overlay .agy-morph-pulse.p2 { border-color: var(--boot-gold); animation-delay: 1.0s; }
+      #agy-boot-overlay .agy-morph-scan {
+        position: absolute; left: 16%; right: 16%; height: 2px; top: 15%;
+        background: linear-gradient(90deg, transparent, var(--boot-p), #ffffff, var(--boot-s), transparent);
+        box-shadow: 0 0 12px var(--boot-p);
+        animation: agyMorphLaser 1.35s ease-in-out infinite alternate;
+        pointer-events: none; z-index: 4;
+      }
+      @keyframes agyMorphLaser { 0% { top: 18%; opacity: 0.45; } 100% { top: 82%; opacity: 0.95; } }
+      #agy-boot-overlay .agy-charge-readout {
+        font-size: 12px; font-weight: 700; letter-spacing: 0.28em; color: var(--boot-gold);
+        text-shadow: 0 0 10px rgba(251,191,36,0.45); margin-bottom: 6px;
+      }
       #agy-boot-overlay .agy-morph-halo {
         position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
-        animation: agySpinCW 5.5s linear infinite; filter: drop-shadow(0 0 10px var(--boot-glow));
+        animation: agySpinCW 4.6s linear infinite; filter: drop-shadow(0 0 10px var(--boot-glow));
       }
       #agy-boot-overlay .agy-morph-halo-inner {
         position: absolute; inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px); pointer-events: none;
-        animation: agySpinCCW 4s linear infinite;
+        animation: agySpinCCW 3.4s linear infinite;
       }
-      #agy-boot-overlay .agy-icon-outline-svg { position: absolute; inset: 22px; width: calc(100% - 44px); height: calc(100% - 44px); transition: opacity 0.45s ease; }
+      #agy-boot-overlay .agy-icon-outline-svg { position: absolute; inset: 28px; width: calc(100% - 56px); height: calc(100% - 56px); transition: opacity 0.45s ease; }
       #agy-boot-overlay .agy-icon-outline-svg.fade-stroke { opacity: 0; }
       #agy-boot-overlay .agy-icon-outline-path { fill: none; stroke: url(#agyBootStrokeGrad); stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 10px var(--boot-p)); }
       #agy-boot-overlay .agy-icon-outline-path.trace { animation: agyTraceOutline 1.05s cubic-bezier(0.35,0.05,0.25,1) forwards; }
       @keyframes agyTraceOutline { to { stroke-dashoffset: 0; } }
       #agy-boot-overlay .agy-icon-color-fill {
-        position: absolute; inset: 22px; width: calc(100% - 44px); height: calc(100% - 44px); display: block; object-fit: fill;
+        position: absolute; inset: 28px; width: calc(100% - 56px); height: calc(100% - 56px); display: block; object-fit: fill;
         clip-path: inset(85% 0 0 0); opacity: 0;
         transition: clip-path 1.05s cubic-bezier(0.35,0.05,0.25,1), opacity 0.12s ease, filter 0.45s ease;
       }
@@ -1699,11 +1871,26 @@
       /* ==================== EPIC 6-LAYER ROTATING ARCANE STARGATE VERIFICATION SEAL ==================== */
       #agy-boot-overlay .agy-verify-ring-stage {
         position: relative;
-        width: 450px;
-        height: 450px;
+        width: 460px;
+        height: 460px;
         display: flex;
         align-items: center;
         justify-content: center;
+        animation: agySealSlam 0.72s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      @keyframes agySealSlam {
+        0% { opacity: 0; transform: scale(0.62) rotate(-26deg); filter: blur(6px); }
+        68% { opacity: 1; transform: scale(1.03) rotate(2deg); filter: blur(0); }
+        100% { opacity: 1; transform: scale(1) rotate(0deg); filter: blur(0); }
+      }
+      #agy-boot-overlay .agy-ring-tri-glyphs {
+        position: absolute;
+        inset: 64px;
+        width: calc(100% - 128px);
+        height: calc(100% - 128px);
+        animation: agySpinCW 8.5s linear infinite;
+        filter: drop-shadow(0 0 10px var(--boot-gold));
+        pointer-events: none;
       }
       #agy-boot-overlay .agy-verify-aurora {
         position: absolute;
@@ -1802,13 +1989,22 @@
         box-shadow: 0 0 26px var(--boot-glow), 0 0 14px var(--boot-sglow), inset 0 0 16px var(--boot-glow);
         text-shadow: 0 0 14px var(--boot-p);
       }
-      #agy-boot-overlay .agy-welcome-flare-wrap { position: relative; width: 260px; height: 64px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+      #agy-boot-overlay .agy-welcome-flare-wrap { position: relative; width: 280px; height: 78px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
       #agy-boot-overlay .agy-welcome-flare-wrap::before {
-        content: ""; position: absolute; width: 180px; height: 2px;
+        content: ""; position: absolute; width: 230px; height: 2px;
         background: linear-gradient(90deg, transparent, var(--boot-p), var(--boot-gold), var(--boot-s), transparent);
-        box-shadow: 0 0 12px var(--boot-p);
+        box-shadow: 0 0 14px var(--boot-p);
+        animation: agyWelcomeBeam 1.6s cubic-bezier(0.22,1,0.36,1) both;
       }
-      #agy-boot-overlay .agy-welcome-flare-wrap img { width: 48px; height: 48px; object-fit: contain; position: relative; z-index: 2; filter: drop-shadow(0 0 14px var(--boot-glow)); }
+      #agy-boot-overlay .agy-welcome-flare-wrap::after {
+        content: ""; position: absolute; width: 72px; height: 72px; border-radius: 50%;
+        border: 1.5px solid var(--boot-p);
+        box-shadow: 0 0 18px var(--boot-glow), inset 0 0 10px var(--boot-sglow);
+        animation: agyShockRipple 1.9s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      }
+      @keyframes agyWelcomeBeam { 0% { transform: scaleX(0); opacity: 0; } 100% { transform: scaleX(1); opacity: 1; } }
+      #agy-boot-overlay .agy-welcome-flare-wrap img { width: 50px; height: 50px; object-fit: contain; position: relative; z-index: 2; filter: drop-shadow(0 0 16px var(--boot-glow)); animation: agyLogoFloat 2.4s ease-in-out infinite; }
+      @keyframes agyLogoFloat { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-4px) scale(1.05); } }
 
       #agy-boot-overlay .agy-bottom-progress-track {
         position: absolute; left: 50%; transform: translateX(-50%); width: 33.33vw; max-width: 440px;
@@ -1839,10 +2035,17 @@
       <div class="agy-boot-starfield"></div>
       <div class="agy-boot-aurora"></div>
       <div class="agy-boot-vignette"></div>
+      <canvas class="agy-boot-fx-canvas" id="agy-boot-fx-canvas"></canvas>
       <div class="agy-boot-corner tl"></div>
       <div class="agy-boot-corner tr"></div>
       <div class="agy-boot-corner bl"></div>
       <div class="agy-boot-corner br"></div>
+      <div class="agy-telemetry-left" id="agy-telemetry-left">
+        <div class="agy-tel-row"><span class="agy-tel-dot"></span><span id="agy-tel-1">AETHER.CORE :: ONLINE</span></div>
+        <div class="agy-tel-row"><span class="agy-tel-dot"></span><span id="agy-tel-2">NEURAL.LINK :: STANDBY</span></div>
+        <div class="agy-tel-row"><span class="agy-tel-dot"></span><span id="agy-tel-3">CLEARANCE :: PENDING</span></div>
+        <div class="agy-tel-bars"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
       <svg class="agy-boot-bg-halo" viewBox="0 0 400 400" fill="none">
         <circle cx="200" cy="200" r="188" stroke="${bootP}" stroke-opacity="0.32" stroke-width="1" stroke-dasharray="6 10" />
         <circle cx="200" cy="200" r="164" stroke="${bootGold}" stroke-opacity="0.22" stroke-width="0.9" stroke-dasharray="2 14" />
@@ -1866,7 +2069,17 @@
 
       <div class="agy-boot-stage-wrap">
         <div class="agy-boot-stage active" id="agy-stage-0">
-          <img class="agy-splash-logo" id="agy-splash-logo" src="${iconColorUrl}" alt="Antigravity" />
+          <div class="agy-splash-emblem">
+            <svg class="agy-splash-ring-1" viewBox="0 0 140 140" fill="none">
+              <circle cx="70" cy="70" r="64" stroke="${bootP}" stroke-opacity="0.72" stroke-width="1.6" stroke-dasharray="48 18 22 18" stroke-linecap="round" />
+              <circle cx="70" cy="6" r="3" fill="${bootGold}" />
+            </svg>
+            <svg class="agy-splash-ring-2" viewBox="0 0 120 120" fill="none">
+              <circle cx="60" cy="60" r="54" stroke="${bootS}" stroke-opacity="0.6" stroke-width="1.2" stroke-dasharray="14 10" />
+            </svg>
+            <div class="agy-splash-laser"></div>
+            <img class="agy-splash-logo" id="agy-splash-logo" src="${iconColorUrl}" alt="Antigravity" />
+          </div>
           <div class="agy-splash-wordmark">ANTIGRAVITY</div>
           <div class="agy-splash-caption">SYNTHESIZE INTELLIGENCE</div>
         </div>
@@ -1898,6 +2111,9 @@
           <div style="margin-bottom:6px"><span class="agy-hud-title" id="agy-morph-title" data-stagger="16">ĐANG TIẾP NHẬN YÊU CẦU</span></div>
           <div class="agy-hud-subtitle" id="agy-morph-sub" data-stagger="10" style="margin-bottom:10px">ACCESS REQUEST RECEIVED</div>
           <div class="agy-icon-morph-box">
+            <div class="agy-morph-pulse"></div>
+            <div class="agy-morph-pulse p2"></div>
+            <div class="agy-morph-scan"></div>
             <svg class="agy-morph-halo" viewBox="0 0 180 180" fill="none">
               <defs>
                 <linearGradient id="agyMorphRingG" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -1930,6 +2146,7 @@
             </svg>
             <img id="agy-boot-color-fill" class="agy-icon-color-fill" src="${iconColorUrl}" alt="Antigravity" />
           </div>
+          <div class="agy-charge-readout" id="agy-charge-readout">SYNC 00%</div>
           <div class="agy-dot-grid-small">ANTIGRAVITY<br />· · · · · · · · · ·</div>
         </div>
 
@@ -1969,6 +2186,15 @@
               <circle cx="190" cy="366" r="3" fill="${bootP}" />
               <circle cx="38" cy="278" r="3.5" fill="${bootGold}" />
               <circle cx="38" cy="102" r="3" fill="${bootS}" />
+            </svg>
+
+            <!-- Layer 2B: Counter-Spinning Sacred Tri-Seal -->
+            <svg class="agy-ring-tri-glyphs" viewBox="0 0 320 320" fill="none">
+              <polygon points="160,18 286,236 34,236" stroke="${bootGold}" stroke-opacity="0.46" stroke-width="1.3" />
+              <polygon points="160,302 34,84 286,84" stroke="${bootP}" stroke-opacity="0.42" stroke-width="1.2" />
+              <circle cx="160" cy="18" r="3" fill="${bootGold}" />
+              <circle cx="286" cy="236" r="3" fill="${bootP}" />
+              <circle cx="34" cy="236" r="3" fill="${bootS}" />
             </svg>
 
             <!-- Layer 3: High-Speed Multi-Color Plasma Energy Arcs -->
@@ -2046,6 +2272,11 @@
     const hudClock = document.getElementById('agy-hud-clock');
     const morphTitle = document.getElementById('agy-morph-title');
     const morphSub = document.getElementById('agy-morph-sub');
+    const chargeReadout = document.getElementById('agy-charge-readout');
+    const tel1 = document.getElementById('agy-tel-1');
+    const tel2 = document.getElementById('agy-tel-2');
+    const tel3 = document.getElementById('agy-tel-3');
+    const fxCanvas = document.getElementById('agy-boot-fx-canvas');
     const iconOutlineSvg = document.getElementById('agy-icon-outline-svg');
     const outlinePath = document.getElementById('agy-boot-outline-path');
     const colorFillImg = document.getElementById('agy-boot-color-fill');
@@ -2056,6 +2287,209 @@
     let currentStage = 0;
     let bootActx = null;
     const bootStartMs = performance.now();
+
+    // ==================== 60FPS BOOT STAR-WARP, VORTEX & ENERGY BURST CANVAS ====================
+    let triggerFxBurst = () => {};
+    if (fxCanvas) {
+      const fctx = fxCanvas.getContext('2d');
+      let fw = 0, fh = 0;
+      const resizeFx = () => {
+        fw = Math.max(320, window.innerWidth || 1280);
+        fh = Math.max(240, window.innerHeight || 720);
+        fxCanvas.width = fw;
+        fxCanvas.height = fh;
+      };
+      resizeFx();
+      window.addEventListener('resize', resizeFx);
+
+      const palette = [bootP, bootS, bootGold, '#e2e8f0'];
+      const STAR_COUNT = 105;
+      const stars = Array.from({ length: STAR_COUNT }, (_, i) => ({
+        x: (Math.random() - 0.5) * 2.2,
+        y: (Math.random() - 0.5) * 2.2,
+        z: Math.random() * 1.6 + 0.12,
+        ang: Math.random() * Math.PI * 2,
+        rad: 0.14 + Math.random() * 0.72,
+        sz: 0.8 + Math.random() * 1.8,
+        col: palette[i % palette.length],
+        alpha: 0.35 + Math.random() * 0.55
+      }));
+      const sparks = [];
+      const waves = [];
+
+      triggerFxBurst = (count = 36, speedMul = 1, waveCount = 2) => {
+        const cx = fw * 0.5;
+        const cy = fh * 0.5;
+        for (let i = 0; i < count; i++) {
+          const a = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.22;
+          const spd = (2.6 + Math.random() * 6.8) * speedMul;
+          sparks.push({
+            x: cx,
+            y: cy,
+            vx: Math.cos(a) * spd,
+            vy: Math.sin(a) * spd,
+            life: 1,
+            decay: 0.015 + Math.random() * 0.018,
+            sz: 1.4 + Math.random() * 2.4,
+            col: palette[i % palette.length]
+          });
+        }
+        for (let w = 0; w < waveCount; w++) {
+          waves.push({
+            r: 22 + w * 18,
+            maxR: Math.hypot(fw, fh) * (0.42 + w * 0.14),
+            spd: (9 + w * 3.5) * speedMul,
+            alpha: 0.65 - w * 0.18,
+            col: w % 2 === 0 ? bootP : bootGold
+          });
+        }
+      };
+
+      let fxAlive = true;
+      let fxRafId = 0;
+      const renderFx = () => {
+        if (!fxAlive || !fctx) return;
+        fctx.clearRect(0, 0, fw, fh);
+        const cx = fw * 0.5;
+        const cy = fh * 0.5;
+        const minDim = Math.min(fw, fh);
+
+        // Stage-driven motion choreography:
+        // 0: gentle drift | 1-2: calm starfield | 3-4: inward energy vortex | 5: radiant pulse | 6: hyperspace warp jump
+        const warpSpeed = currentStage === 6 ? 0.044 : currentStage === 5 ? 0.016 : currentStage >= 3 ? 0.022 : 0.0055;
+        const swirl = currentStage === 3 || currentStage === 4 ? 0.028 : currentStage === 5 ? 0.012 : 0.0018;
+
+        for (let i = 0; i < stars.length; i++) {
+          const s = stars[i];
+          if (currentStage === 3 || currentStage === 4) {
+            // Inward vortex streams feeding the charging Antigravity core
+            s.ang += swirl + (0.016 / Math.max(0.18, s.rad));
+            s.rad -= 0.0075;
+            if (s.rad < 0.04) {
+              s.rad = 0.68 + Math.random() * 0.25;
+              s.ang = Math.random() * Math.PI * 2;
+            }
+            const px = cx + Math.cos(s.ang) * s.rad * minDim * 0.78;
+            const py = cy + Math.sin(s.ang) * s.rad * minDim * 0.78;
+            const tx = cx + Math.cos(s.ang - 0.16) * (s.rad + 0.03) * minDim * 0.78;
+            const ty = cy + Math.sin(s.ang - 0.16) * (s.rad + 0.03) * minDim * 0.78;
+            fctx.strokeStyle = s.col;
+            fctx.globalAlpha = s.alpha * 0.75;
+            fctx.lineWidth = s.sz * 0.85;
+            fctx.beginPath();
+            fctx.moveTo(tx, ty);
+            fctx.lineTo(px, py);
+            fctx.stroke();
+          } else {
+            // 3D depth star-warp (stretches into hyperspace streaks in Stage 6!)
+            const prevZ = s.z;
+            s.z -= warpSpeed;
+            if (s.z <= 0.05) {
+              s.x = (Math.random() - 0.5) * 2.2;
+              s.y = (Math.random() - 0.5) * 2.2;
+              s.z = 1.65;
+            }
+            const sx = cx + (s.x / s.z) * (fw * 0.42);
+            const sy = cy + (s.y / s.z) * (fh * 0.42);
+            const px = cx + (s.x / (prevZ + (currentStage === 6 ? 0.08 : 0.01))) * (fw * 0.42);
+            const py = cy + (s.y / (prevZ + (currentStage === 6 ? 0.08 : 0.01))) * (fh * 0.42);
+            const depthAlpha = Math.min(1, (1.7 - s.z) * 0.65) * s.alpha;
+            if (sx > -40 && sx < fw + 40 && sy > -40 && sy < fh + 40) {
+              if (currentStage >= 5) {
+                fctx.strokeStyle = s.col;
+                fctx.globalAlpha = depthAlpha * 0.85;
+                fctx.lineWidth = Math.max(0.9, (1.7 - s.z) * s.sz * 0.9);
+                fctx.beginPath();
+                fctx.moveTo(px, py);
+                fctx.lineTo(sx, sy);
+                fctx.stroke();
+              } else {
+                fctx.fillStyle = s.col;
+                fctx.globalAlpha = depthAlpha * 0.7;
+                fctx.beginPath();
+                fctx.arc(sx, sy, Math.max(0.7, (1.7 - s.z) * s.sz * 0.75), 0, Math.PI * 2);
+                fctx.fill();
+              }
+            }
+          }
+        }
+
+        // Expanding shockwave rings
+        for (let i = waves.length - 1; i >= 0; i--) {
+          const w = waves[i];
+          w.r += w.spd;
+          w.alpha *= 0.945;
+          if (w.alpha < 0.02 || w.r > w.maxR) {
+            waves.splice(i, 1);
+            continue;
+          }
+          fctx.strokeStyle = w.col;
+          fctx.globalAlpha = w.alpha;
+          fctx.lineWidth = 2.0;
+          fctx.beginPath();
+          fctx.arc(cx, cy, w.r, 0, Math.PI * 2);
+          fctx.stroke();
+        }
+
+        // Radial burst sparks
+        for (let i = sparks.length - 1; i >= 0; i--) {
+          const p = sparks[i];
+          const ox = p.x;
+          const oy = p.y;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vx *= 0.965;
+          p.vy *= 0.965;
+          p.life -= p.decay;
+          if (p.life <= 0) {
+            sparks.splice(i, 1);
+            continue;
+          }
+          fctx.strokeStyle = p.col;
+          fctx.globalAlpha = p.life * 0.9;
+          fctx.lineWidth = p.sz;
+          fctx.beginPath();
+          fctx.moveTo(ox, oy);
+          fctx.lineTo(p.x, p.y);
+          fctx.stroke();
+        }
+
+        fctx.globalAlpha = 1;
+        fxRafId = requestAnimationFrame(renderFx);
+      };
+      fxRafId = requestAnimationFrame(renderFx);
+
+      window.__AGY_BOOT_FX_CLEANUP__ = () => {
+        fxAlive = false;
+        if (fxRafId) cancelAnimationFrame(fxRafId);
+        window.removeEventListener('resize', resizeFx);
+        if (fxCanvas) {
+          fxCanvas.width = 0;
+          fxCanvas.height = 0;
+        }
+      };
+    }
+
+    function animateChargeCounter(fromPct, toPct, durMs) {
+      if (!chargeReadout) return;
+      if (window.__AGY_BOOT_CHARGE_RAF__) {
+        cancelAnimationFrame(window.__AGY_BOOT_CHARGE_RAF__);
+        window.__AGY_BOOT_CHARGE_RAF__ = null;
+      }
+      const t0 = performance.now();
+      const tickCharge = (now) => {
+        const p = Math.min(1, (now - t0) / Math.max(1, durMs));
+        const eased = 1 - Math.pow(1 - p, 3);
+        const val = Math.round(fromPct + (toPct - fromPct) * eased);
+        chargeReadout.textContent = `SYNC ${String(val).padStart(2, '0')}%`;
+        if (p < 1) {
+          window.__AGY_BOOT_CHARGE_RAF__ = requestAnimationFrame(tickCharge);
+        } else {
+          window.__AGY_BOOT_CHARGE_RAF__ = null;
+        }
+      };
+      window.__AGY_BOOT_CHARGE_RAF__ = requestAnimationFrame(tickCharge);
+    }
 
     function playClickSfx(freq = 640, dur = 0.06, vol = 0.045) {
       try {
@@ -2188,10 +2622,24 @@
       stepLabel.textContent = meta[idx][0];
       statusBottom.textContent = meta[idx][1];
       bottomProgress.style.width = `${meta[idx][2]}%`;
+
+      const telStates = [
+        ['AETHER.CORE :: BOOT', 'NEURAL.LINK :: INIT', 'CLEARANCE :: LOCKED'],
+        ['AETHER.CORE :: ONLINE', 'NEURAL.LINK :: AWAIT', 'CLEARANCE :: REQUEST'],
+        ['AETHER.CORE :: ONLINE', 'BIOMETRIC :: READY', 'OPERATOR :: MASTER'],
+        ['AETHER.CORE :: SURGE', 'VECTOR.SYNC :: ACTIVE', 'KEYS :: STREAMING'],
+        ['AETHER.CORE :: 100%', 'DECRYPTING :: LEVEL ∞', 'SOUL.LINK :: LOCKED'],
+        ['AETHER.CORE :: VERIFIED', 'STARGATE :: UNLOCKED', 'CLEARANCE :: GRANTED'],
+        ['ANTIGRAVITY :: READY', 'WARP.JUMP :: ENGAGED', 'MASTER :: CONNECTED']
+      ];
+      const ts = telStates[idx] || telStates[0];
+      if (tel1) tel1.textContent = ts[0];
+      if (tel2) tel2.textContent = ts[1];
+      if (tel3) tel3.textContent = ts[2];
     }
 
     function finishBoot(instant = false) {
-      clearBootTimers();
+      clearBootTimers(!instant);
       startHexStream(false);
       window.__AGY_BOOT_FINISHED__ = true;
       if (instant) {
@@ -2209,6 +2657,10 @@
           scheduleRevealWhenReady(false);
           window.__AGY_BOOT_TIMERS__.push(setTimeout(() => {
             overlay.style.display = 'none';
+            if (typeof window.__AGY_BOOT_FX_CLEANUP__ === 'function') {
+              try { window.__AGY_BOOT_FX_CLEANUP__(); } catch (e) {}
+              window.__AGY_BOOT_FX_CLEANUP__ = null;
+            }
           }, 700));
         }, 340)
       );
@@ -2224,6 +2676,8 @@
       outlinePath.classList.remove('trace');
       outlinePath.style.strokeDashoffset = String(outlineTotalLen);
       showStage(3, true);
+      animateChargeCounter(0, 48, 1020);
+      triggerFxBurst(28, 0.9, 1);
       void outlinePath.offsetWidth;
       outlinePath.classList.add('trace');
       playClickSfx(520, 0.06, 0.045);
@@ -2239,6 +2693,7 @@
         morphSub.dataset.rawText = 'PERMISSION READ STARTED';
         morphSub.textContent = 'PERMISSION READ STARTED';
         showStage(4, true);
+        animateChargeCounter(48, 100, 1750);
         startHexStream(true);
         void colorFillImg.offsetWidth;
         colorFillImg.classList.add('filled');
@@ -2250,6 +2705,7 @@
           startHexStream(false);
           showStage(5, true);
           triggerScanline();
+          triggerFxBurst(54, 1.35, 3);
           playClickSfx(780, 0.08, 0.05);
           playTawaVoice(3);
         }, 1950));
@@ -2261,6 +2717,7 @@
 
         window.__AGY_BOOT_TIMERS__.push(setTimeout(() => {
           showStage(6, true);
+          triggerFxBurst(40, 1.2, 2);
           playClickSfx(880, 0.1, 0.045);
           playTawaVoice(4);
         }, 4520));
@@ -2299,6 +2756,7 @@
       if (currentStage !== 1) return;
       e.currentTarget.classList.add('triggered');
       playClickSfx(680, 0.06, 0.05);
+      triggerFxBurst(30, 1.0, 2);
       if (!voice1Played) playTawaVoice(1);
       const st1 = document.getElementById('agy-stage-1');
       window.__AGY_BOOT_TIMERS__.push(setTimeout(() => st1 && st1.classList.add('wipe-out'), 240));
@@ -2309,6 +2767,7 @@
       if (currentStage !== 2) return;
       e.currentTarget.classList.add('triggered');
       playClickSfx(820, 0.06, 0.05);
+      triggerFxBurst(36, 1.15, 2);
       playTawaVoice(2);
       const st2 = document.getElementById('agy-stage-2');
       window.__AGY_BOOT_TIMERS__.push(setTimeout(() => st2 && st2.classList.add('wipe-out'), 240));
