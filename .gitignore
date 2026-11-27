@@ -6,9 +6,15 @@ theme_config.json
 silent-start.vbs
 TAWA_MOD_NOTES.md
 
-# Private user media uploads (keep only the sample task-completion voice)
+# Local screen recordings / scratch exports
+edited/
+
+# Private user media uploads (keep only the bundled sample system task voices)
 themes/user_media/*
-!themes/user_media/1795011944060_Tawa_voice_task_1.mp3
+!themes/user_media/1795020001001_System_Task_Completed.mp3
+!themes/user_media/1795020001002_System_Report_Success.mp3
+!themes/user_media/1795020001003_System_Directive_Executed.mp3
+!themes/user_media/1795020001004_System_Operation_Complete.mp3
 
 # OS / Python / Node junk
 __pycache__/

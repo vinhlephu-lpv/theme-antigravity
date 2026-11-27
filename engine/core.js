@@ -27,6 +27,8 @@
   const STORAGE_SKETCH_REVEAL = 'agy_sketch_reveal_v3';
   const STORAGE_TAWA_GREETING = 'agy_tawa_greeting_v3';
   const STORAGE_RANDOM_BOOT = 'agy_random_boot_v3';
+  const STORAGE_RANDOM_DECK = 'agy_random_deck_v3';
+  const STORAGE_BOOT_FX_DECK = 'agy_boot_fx_deck_v3';
   const GREETING_RX = /^(?:Hey\s+[^,]{1,40},\s+what\s+should\s+we\s+build\s+today\??|Good\s+to\s+see\s+you,\s+[^.]{1,40}\.\s+What'?s\s+next\??|What\s+(?:should|are)\s+we\s+build(?:ing)?\s+today\??|Welcome\s+back[,.!\s]+[^.!?]{0,40}(?:[.!?]\s*(?:Where\s+should\s+we\s+pick\s+up|What'?s\s+next|What\s+should\s+we\s+build)[^.!?]{0,40}[.!?]?)?|Where\s+should\s+we\s+pick\s+up\??|Ready\s+(?:to\s+build|when\s+you\s+are)[,.!\s]*.*)$/i;
   const DEFAULT_CUSTOM_GREETINGS = [];
 
@@ -321,12 +323,29 @@
     const randomThemeOnBoot = localStorage.getItem(STORAGE_RANDOM_BOOT) !== null
       ? localStorage.getItem(STORAGE_RANDOM_BOOT) !== 'false'
       : (init.randomThemeOnBoot !== undefined ? init.randomThemeOnBoot : true);
+    let randomDeck = [];
+    try {
+      const rawDeck = localStorage.getItem(STORAGE_RANDOM_DECK);
+      const parsedDeck = rawDeck !== null ? JSON.parse(rawDeck) : init.randomDeck;
+      if (Array.isArray(parsedDeck)) {
+        randomDeck = parsedDeck.filter((k) => typeof k === 'string' && Boolean(THEMES[k]));
+      }
+    } catch (e) {}
+    let bootFxDeck = [];
+    try {
+      const rawFxDeck = localStorage.getItem(STORAGE_BOOT_FX_DECK);
+      const parsedFxDeck = rawFxDeck !== null ? JSON.parse(rawFxDeck) : init.bootFxDeck;
+      if (Array.isArray(parsedFxDeck)) {
+        bootFxDeck = parsedFxDeck.filter((k) => typeof k === 'string');
+      }
+    } catch (e) {}
     return {
       themeName, bubbleName, inputStyle, dimming, wpEnabled, wpMode,
       customWp, customVideo, savedImages, savedVideos,
       taskVoices, taskVoiceEnabled, taskVoiceVol, customGreetings,
       userAvatar, agentAvatar, glassBlur, avatarSize, avatarRadius,
-      bootIntro, sketchReveal, tawaGreeting, randomThemeOnBoot
+      bootIntro, sketchReveal, tawaGreeting, randomThemeOnBoot,
+      randomDeck, bootFxDeck
     };
   }
 
@@ -946,9 +965,10 @@
       mediaWrap.style.webkitMaskImage = 'none';
       mediaWrap.style.maskImage = 'none';
       layer.style.background = 'transparent';
-      if (isVideoMode && videoEl && videoEl.getAttribute('data-src')) {
+      const hasLiveSystemBg = Boolean(document.getElementById('agy-live-system-bg'));
+      if ((isVideoMode && videoEl && videoEl.getAttribute('data-src')) || hasLiveSystemBg) {
         layer.classList.remove('agy-bg-hidden');
-        if (videoEl.paused && videoEl.src) {
+        if (isVideoMode && videoEl && videoEl.paused && videoEl.src) {
           videoEl.play().catch(() => {});
         }
       } else {
@@ -1147,7 +1167,8 @@
         mediaWrap.style.webkitMaskImage = 'none';
         mediaWrap.style.maskImage = 'none';
         layer.style.background = 'transparent';
-        if (!isVideoMode || !videoEl || !videoEl.getAttribute('data-src')) {
+        const hasLiveSystemBg = Boolean(document.getElementById('agy-live-system-bg'));
+        if ((!isVideoMode || !videoEl || !videoEl.getAttribute('data-src')) && !hasLiveSystemBg) {
           layer.classList.add('agy-bg-hidden');
         }
       }
@@ -1265,6 +1286,12 @@
       imgEl.style.objectPosition = bgPosition || 'center center';
     }
 
+    const liveBgType = (!isVideoMode && !st.customWp && mainTheme.liveBg) ? String(mainTheme.liveBg) : '';
+    const existingSysBg = document.getElementById('agy-live-system-bg');
+    if (existingSysBg && (!liveBgType || existingSysBg.getAttribute('data-live-bg') !== liveBgType)) {
+      existingSysBg.remove();
+    }
+
     if (isVideoMode && wpVideoUrl) {
       layer.classList.remove('agy-bg-hidden');
       if (imgEl) imgEl.style.display = 'none';
@@ -1337,7 +1364,6 @@
         mediaWrap.style.maskImage = 'none';
       }
     } else {
-      if (scrimEl) scrimEl.style.opacity = '0';
       releaseVideoDecoder(videoEl);
       if (imgEl && wpImageUrl) {
         if (!/^(?:data|blob|file):/i.test(wpImageUrl)) {
@@ -1351,10 +1377,266 @@
           imgEl.src = wpImageUrl;
         }
       }
-      if (!window.__AGY_REVEAL_DONE_ONCE__ && (!st.bootIntro || window.__AGY_BOOT_FINISHED__)) {
-        scheduleRevealWhenReady(false);
-      } else if (!window.__AGY_REVEAL_RAF__) {
-        layer.classList.add('agy-bg-hidden');
+      if (liveBgType && mediaWrap) {
+        const pCol = mainTheme.primary || '#38e8ff';
+        const sCol = mainTheme.secondary || '#a78bfa';
+        const gCol = '#fbbf24';
+        let sysBg = document.getElementById('agy-live-system-bg');
+        if (!sysBg) {
+          sysBg = document.createElement('div');
+          sysBg.id = 'agy-live-system-bg';
+          sysBg.setAttribute('data-live-bg', liveBgType);
+          if (liveBgType === 'eclipse_chrono') {
+            sysBg.innerHTML = `
+              <div class="agy-sysbg-aurora"></div>
+              <div class="agy-sysbg-stage">
+                <div class="agy-sysbg-shock s1"></div>
+                <div class="agy-sysbg-shock s2"></div>
+                <div class="agy-ec-corona"></div>
+                <div class="agy-ec-core-disc"></div>
+
+                <!-- Layer 1: Outer 12-Hour Celestial Astrolabe Compass Dial -->
+                <svg class="agy-ec-dial" viewBox="0 0 560 560" fill="none">
+                  <defs>
+                    <linearGradient id="agyEcDialG" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#fde68a" />
+                      <stop offset="50%" stop-color="${pCol}" />
+                      <stop offset="100%" stop-color="${sCol}" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="280" cy="280" r="266" stroke="url(#agyEcDialG)" stroke-width="1.5" stroke-opacity="0.72" />
+                  <circle cx="280" cy="280" r="252" stroke="#fde68a" stroke-width="1.8" stroke-dasharray="2 11.2" stroke-opacity="0.56" />
+                  <circle cx="280" cy="280" r="236" stroke="${sCol}" stroke-width="1" stroke-dasharray="22 14 6 14" stroke-opacity="0.52" />
+                  <!-- 12 Starburst Hour Spikes -->
+                  <g stroke="#fde68a" stroke-opacity="0.72" stroke-width="1.4" stroke-linecap="round">
+                    <line x1="280" y1="8" x2="280" y2="32" />
+                    <line x1="280" y1="528" x2="280" y2="552" />
+                    <line x1="8" y1="280" x2="32" y2="280" />
+                    <line x1="528" y1="280" x2="552" y2="280" />
+                    <line x1="416" y1="44" x2="404" y2="65" />
+                    <line x1="144" y1="516" x2="156" y2="495" />
+                    <line x1="516" y1="144" x2="495" y2="156" />
+                    <line x1="44" y1="416" x2="65" y2="404" />
+                    <line x1="516" y1="416" x2="495" y2="404" />
+                    <line x1="44" y1="144" x2="65" y2="156" />
+                    <line x1="416" y1="516" x2="404" y2="495" />
+                    <line x1="144" y1="44" x2="156" y2="65" />
+                  </g>
+                  <polygon points="280,2 286,14 280,24 274,14" fill="#fde68a" />
+                  <polygon points="280,536 286,546 280,558 274,546" fill="${sCol}" />
+                </svg>
+
+                <!-- Layer 2: Counter-Rotating Filigree Sunburst Ring -->
+                <svg class="agy-ec-sunburst" viewBox="0 0 460 460" fill="none">
+                  <circle cx="230" cy="230" r="196" stroke="${pCol}" stroke-opacity="0.48" stroke-width="1.3" stroke-dasharray="48 16 12 16" />
+                  <polygon points="230,26 254,182 406,128 282,230 406,332 254,278 230,434 206,278 54,332 178,230 54,128 206,182" stroke="${pCol}" stroke-opacity="0.24" stroke-width="1.1" />
+                  <circle cx="230" cy="230" r="144" stroke="${sCol}" stroke-opacity="0.42" stroke-width="1.1" stroke-dasharray="4 8" />
+                </svg>
+
+                <!-- Layer 3: Tilted Armillary Planetary Orbit A (Gold + Crescent Moon) -->
+                <svg class="agy-ec-arm1" viewBox="0 0 520 520" fill="none">
+                  <ellipse cx="260" cy="260" rx="236" ry="92" stroke="#fde68a" stroke-opacity="0.58" stroke-width="1.5" />
+                  <ellipse cx="260" cy="260" rx="224" ry="82" stroke="${pCol}" stroke-opacity="0.34" stroke-width="1" stroke-dasharray="8 10" />
+                  <circle cx="496" cy="260" r="6.5" fill="#fde68a" />
+                  <circle cx="496" cy="260" r="12" fill="${pCol}" fill-opacity="0.28" />
+                  <path d="M26 254 A7 7 0 1 0 26 266 A5 5 0 1 1 26 254 Z" fill="#fffbeb" />
+                </svg>
+
+                <!-- Layer 4: Tilted Armillary Planetary Orbit B (Crimson-Rose) -->
+                <svg class="agy-ec-arm2" viewBox="0 0 520 520" fill="none">
+                  <ellipse cx="260" cy="260" rx="212" ry="86" stroke="${sCol}" stroke-opacity="0.58" stroke-width="1.4" />
+                  <circle cx="472" cy="260" r="5" fill="${sCol}" />
+                  <circle cx="48" cy="260" r="4" fill="#fde68a" />
+                </svg>
+
+                <!-- Layer 5: Sweeping Celestial Chrono Hands -->
+                <svg class="agy-ec-hand-slow" viewBox="0 0 400 400" fill="none">
+                  <line x1="200" y1="200" x2="200" y2="34" stroke="#fde68a" stroke-opacity="0.55" stroke-width="1.6" stroke-linecap="round" />
+                  <polygon points="200,22 204,36 200,44 196,36" fill="#fde68a" fill-opacity="0.85" />
+                  <line x1="200" y1="200" x2="200" y2="262" stroke="${sCol}" stroke-opacity="0.4" stroke-width="1.1" stroke-linecap="round" />
+                </svg>
+                <svg class="agy-ec-hand-fast" viewBox="0 0 400 400" fill="none">
+                  <line x1="200" y1="200" x2="200" y2="58" stroke="${sCol}" stroke-opacity="0.62" stroke-width="1.2" stroke-linecap="round" />
+                  <circle cx="200" cy="54" r="3.4" fill="${sCol}" />
+                </svg>
+
+                <div class="agy-sysbg-orbits">
+                  <span class="dot g" style="top:8%;left:38%"></span>
+                  <span class="dot s" style="top:26%;right:11%"></span>
+                  <span class="dot g" style="bottom:14%;left:19%"></span>
+                  <span class="dot p" style="bottom:20%;right:20%"></span>
+                </div>
+              </div>
+            `;
+          } else if (liveBgType === 'cyber_matrix') {
+            sysBg.innerHTML = `
+              <div class="agy-sysbg-aurora"></div>
+              <div class="agy-sysbg-stage">
+                <div class="agy-mx-pulse p1"></div>
+                <div class="agy-mx-pulse p2"></div>
+                <div class="agy-mx-lidar"></div>
+
+                <!-- Layer 1: Outer Segmented Tactical HUD Armor Brackets -->
+                <svg class="agy-mx-outer" viewBox="0 0 560 560" fill="none">
+                  <defs>
+                    <linearGradient id="agyMxOuterG" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="${pCol}" />
+                      <stop offset="50%" stop-color="${sCol}" />
+                      <stop offset="100%" stop-color="#34d399" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="280" cy="280" r="264" stroke="url(#agyMxOuterG)" stroke-width="2.4" stroke-dasharray="120 48 64 48 120 48 64 48" stroke-opacity="0.72" />
+                  <circle cx="280" cy="280" r="248" stroke="${pCol}" stroke-width="1.4" stroke-dasharray="2 10" stroke-opacity="0.52" />
+                  <circle cx="280" cy="280" r="236" stroke="${sCol}" stroke-width="0.9" stroke-dasharray="36 24" stroke-opacity="0.45" />
+                  <!-- 4 Diagonal Target-Lock Chevrons -->
+                  <polyline points="82,118 96,96 118,82" stroke="${sCol}" stroke-width="2.2" stroke-linecap="square" />
+                  <polyline points="442,82 464,96 478,118" stroke="${pCol}" stroke-width="2.2" stroke-linecap="square" />
+                  <polyline points="478,442 464,464 442,478" stroke="${sCol}" stroke-width="2.2" stroke-linecap="square" />
+                  <polyline points="118,478 96,464 82,442" stroke="${pCol}" stroke-width="2.2" stroke-linecap="square" />
+                </svg>
+
+                <!-- Layer 2: Counter-Rotating Outer Quantum Hex Matrix -->
+                <svg class="agy-mx-hex1" viewBox="0 0 480 480" fill="none">
+                  <polygon points="240,20 430,130 430,350 240,460 50,350 50,130" stroke="${pCol}" stroke-opacity="0.62" stroke-width="1.8" />
+                  <polygon points="240,42 411,141 411,339 240,438 69,339 69,141" stroke="${sCol}" stroke-opacity="0.34" stroke-width="1" stroke-dasharray="18 10" />
+                  <!-- Circuit Trace Nodes on Vertices -->
+                  <rect x="236" y="16" width="8" height="8" fill="${sCol}" />
+                  <rect x="426" y="126" width="8" height="8" fill="${pCol}" />
+                  <rect x="426" y="346" width="8" height="8" fill="${sCol}" />
+                  <rect x="236" y="456" width="8" height="8" fill="${pCol}" />
+                  <rect x="46" y="346" width="8" height="8" fill="${sCol}" />
+                  <rect x="46" y="126" width="8" height="8" fill="${pCol}" />
+                </svg>
+
+                <!-- Layer 3: High-Speed Inner Quantum Reactor Hex-Core -->
+                <svg class="agy-mx-hex2" viewBox="0 0 360 360" fill="none">
+                  <polygon points="180,26 314,103 314,257 180,334 46,257 46,103" stroke="${sCol}" stroke-opacity="0.66" stroke-width="1.6" stroke-dasharray="60 18" />
+                  <polygon points="180,68 277,124 277,236 180,292 83,236 83,124" stroke="${pCol}" stroke-opacity="0.55" stroke-width="1.3" />
+                  <!-- Crosshair Spokes -->
+                  <line x1="180" y1="26" x2="180" y2="68" stroke="${sCol}" stroke-opacity="0.55" stroke-width="1.2" />
+                  <line x1="180" y1="292" x2="180" y2="334" stroke="${sCol}" stroke-opacity="0.55" stroke-width="1.2" />
+                  <line x1="46" y1="103" x2="83" y2="124" stroke="${pCol}" stroke-opacity="0.55" stroke-width="1.2" />
+                  <line x1="314" y1="257" x2="277" y2="236" stroke="${pCol}" stroke-opacity="0.55" stroke-width="1.2" />
+                  <line x1="314" y1="103" x2="277" y2="124" stroke="${pCol}" stroke-opacity="0.55" stroke-width="1.2" />
+                  <line x1="46" y1="257" x2="83" y2="236" stroke="${pCol}" stroke-opacity="0.55" stroke-width="1.2" />
+                </svg>
+
+                <!-- Layer 4: Static Precision Tactical Reticle -->
+                <svg class="agy-mx-reticle" viewBox="0 0 420 420" fill="none">
+                  <circle cx="210" cy="210" r="144" stroke="${pCol}" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="4 10" />
+                  <circle cx="210" cy="210" r="76" stroke="${sCol}" stroke-opacity="0.30" stroke-width="1" />
+                  <line x1="12" y1="210" x2="96" y2="210" stroke="${pCol}" stroke-opacity="0.34" stroke-width="1" />
+                  <line x1="324" y1="210" x2="408" y2="210" stroke="${pCol}" stroke-opacity="0.34" stroke-width="1" />
+                  <line x1="210" y1="12" x2="210" y2="96" stroke="${sCol}" stroke-opacity="0.34" stroke-width="1" />
+                  <line x1="210" y1="324" x2="210" y2="408" stroke="${sCol}" stroke-opacity="0.34" stroke-width="1" />
+                </svg>
+
+                <!-- Layer 5: Orbiting Quantum Data Diamonds -->
+                <div class="agy-mx-packets">
+                  <span class="pkt p" style="top:9%;left:32%"></span>
+                  <span class="pkt s" style="top:24%;right:12%"></span>
+                  <span class="pkt p" style="bottom:14%;left:17%"></span>
+                  <span class="pkt s" style="bottom:20%;right:24%"></span>
+                  <span class="pkt p" style="top:52%;left:5%"></span>
+                  <span class="pkt s" style="top:44%;right:5%"></span>
+                </div>
+              </div>
+            `;
+          } else {
+            sysBg.innerHTML = `
+              <div class="agy-sysbg-aurora"></div>
+              <div class="agy-sysbg-stage">
+                <div class="agy-sysbg-shock s1"></div>
+                <div class="agy-sysbg-shock s2"></div>
+                <div class="agy-sysbg-radar"></div>
+
+                <svg class="agy-sysbg-outer" viewBox="0 0 560 560" fill="none">
+                  <defs>
+                    <linearGradient id="agySysOuterG" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="${gCol}" />
+                      <stop offset="50%" stop-color="${pCol}" />
+                      <stop offset="100%" stop-color="${sCol}" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="280" cy="280" r="266" stroke="url(#agySysOuterG)" stroke-width="1.6" stroke-opacity="0.72" />
+                  <circle cx="280" cy="280" r="254" stroke="${gCol}" stroke-width="2.0" stroke-dasharray="3 13" stroke-opacity="0.58" />
+                  <circle cx="280" cy="280" r="242" stroke="${pCol}" stroke-width="1" stroke-dasharray="34 16 10 16" stroke-opacity="0.52" />
+                  <polygon points="280,4 287,16 280,28 273,16" fill="${gCol}" fill-opacity="0.9" />
+                  <polygon points="280,532 287,544 280,556 273,544" fill="${gCol}" fill-opacity="0.9" />
+                  <polygon points="4,280 16,273 28,280 16,287" fill="${pCol}" fill-opacity="0.9" />
+                  <polygon points="532,280 544,273 556,280 544,287" fill="${sCol}" fill-opacity="0.9" />
+                </svg>
+
+                <svg class="agy-sysbg-octa" viewBox="0 0 480 480" fill="none">
+                  <polygon points="240,18 432,129 432,351 240,462 48,351 48,129" stroke="${pCol}" stroke-opacity="0.44" stroke-width="1.4" />
+                  <polygon points="240,18 432,129 432,351 240,462 48,351 48,129" transform="rotate(30 240 240)" stroke="${sCol}" stroke-opacity="0.44" stroke-width="1.4" />
+                  <circle cx="240" cy="18" r="3.6" fill="${pCol}" />
+                  <circle cx="432" cy="129" r="3.2" fill="${gCol}" />
+                  <circle cx="432" cy="351" r="3.6" fill="${sCol}" />
+                  <circle cx="240" cy="462" r="3.2" fill="${pCol}" />
+                  <circle cx="48" cy="351" r="3.6" fill="${gCol}" />
+                  <circle cx="48" cy="129" r="3.2" fill="${sCol}" />
+                </svg>
+
+                <svg class="agy-sysbg-tri" viewBox="0 0 400 400" fill="none">
+                  <polygon points="200,20 356,290 44,290" stroke="${gCol}" stroke-opacity="0.38" stroke-width="1.25" />
+                  <polygon points="200,380 44,110 356,110" stroke="${pCol}" stroke-opacity="0.36" stroke-width="1.2" />
+                  <circle cx="200" cy="20" r="3" fill="${gCol}" />
+                  <circle cx="356" cy="290" r="3" fill="${pCol}" />
+                  <circle cx="44" cy="290" r="3" fill="${sCol}" />
+                </svg>
+
+                <svg class="agy-sysbg-arcs" viewBox="0 0 420 420" fill="none">
+                  <defs>
+                    <linearGradient id="agySysArcG" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="${pCol}" />
+                      <stop offset="50%" stop-color="${gCol}" />
+                      <stop offset="100%" stop-color="${sCol}" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="210" cy="210" r="190" stroke="url(#agySysArcG)" stroke-width="3.6" stroke-dasharray="260 110 170 130 210 140" stroke-linecap="round" stroke-opacity="0.86" />
+                  <circle cx="210" cy="20" r="5" fill="#ffffff" />
+                  <circle cx="210" cy="20" r="9.5" fill="${pCol}" fill-opacity="0.38" />
+                  <circle cx="210" cy="400" r="4.2" fill="${gCol}" />
+                </svg>
+
+                <svg class="agy-sysbg-inner" viewBox="0 0 320 320" fill="none">
+                  <circle cx="160" cy="160" r="148" stroke="${sCol}" stroke-opacity="0.58" stroke-width="1.8" stroke-dasharray="54 18 16 18" stroke-linecap="round" />
+                  <circle cx="160" cy="160" r="132" stroke="${gCol}" stroke-opacity="0.38" stroke-width="1.1" stroke-dasharray="3 10" />
+                  <circle cx="160" cy="160" r="76" stroke="${pCol}" stroke-opacity="0.28" stroke-width="1" stroke-dasharray="8 8" />
+                </svg>
+
+                <div class="agy-sysbg-orbits">
+                  <span class="dot p" style="top:7%;left:36%"></span>
+                  <span class="dot g" style="top:22%;right:10%"></span>
+                  <span class="dot s" style="bottom:13%;left:18%"></span>
+                  <span class="dot p" style="bottom:19%;right:22%"></span>
+                  <span class="dot g" style="top:50%;left:3%"></span>
+                  <span class="dot s" style="top:46%;right:3%"></span>
+                </div>
+              </div>
+            `;
+          }
+          mediaWrap.insertBefore(sysBg, scrimEl || null);
+        }
+        if (scrimEl) {
+          scrimEl.style.background = `radial-gradient(circle at calc(50% + var(--agy-sidebar-w, 256px) * 0.5) calc(50% + var(--agy-hdr-h, 40px) * 0.35), rgba(${overlayRgb}, ${(overlayAlpha * 0.45).toFixed(3)}) 0%, rgba(${overlayRgb}, ${(overlayAlpha * 0.72).toFixed(3)}) 72%, rgba(${overlayRgb}, ${Math.min(0.92, overlayAlpha * 0.86).toFixed(3)}) 100%)`;
+          scrimEl.style.opacity = '1';
+        }
+        layer.classList.remove('agy-bg-hidden');
+        if (!window.__AGY_REVEAL_DONE_ONCE__ && (!st.bootIntro || window.__AGY_BOOT_FINISHED__)) {
+          scheduleRevealWhenReady(false);
+        } else if (!window.__AGY_REVEAL_RAF__ && mediaWrap) {
+          mediaWrap.style.webkitMaskImage = 'none';
+          mediaWrap.style.maskImage = 'none';
+        }
+      } else {
+        if (scrimEl) scrimEl.style.opacity = '0';
+        if (!window.__AGY_REVEAL_DONE_ONCE__ && (!st.bootIntro || window.__AGY_BOOT_FINISHED__)) {
+          scheduleRevealWhenReady(false);
+        } else if (!window.__AGY_REVEAL_RAF__) {
+          layer.classList.add('agy-bg-hidden');
+        }
       }
     }
   }
@@ -2289,6 +2571,29 @@
     const bootStartMs = performance.now();
 
     // ==================== 60FPS BOOT STAR-WARP, VORTEX & ENERGY BURST CANVAS ====================
+    const BOOT_FX_MODES = ['warp', 'constellation', 'aether_rain', 'spiral'];
+    let fxDeck = Array.isArray(st.bootFxDeck)
+      ? st.bootFxDeck.filter((m, i, a) => BOOT_FX_MODES.includes(m) && a.indexOf(m) === i)
+      : [];
+    if (fxDeck.length === 0) {
+      fxDeck = shuffleArray(BOOT_FX_MODES);
+      if (window.__AGY_LAST_BOOT_FX__ && fxDeck[0] === window.__AGY_LAST_BOOT_FX__ && fxDeck.length > 1) {
+        const tmpM = fxDeck[0];
+        fxDeck[0] = fxDeck[1];
+        fxDeck[1] = tmpM;
+      }
+    }
+    const bootFxMode = fxDeck.shift() || 'warp';
+    window.__AGY_LAST_BOOT_FX__ = bootFxMode;
+    try {
+      localStorage.setItem(STORAGE_BOOT_FX_DECK, JSON.stringify(fxDeck));
+    } catch (e) {}
+    if (window.agySaveThemeConfig) {
+      try {
+        window.agySaveThemeConfig(JSON.stringify({ ...getState(), bootFxDeck: fxDeck }));
+      } catch (e) {}
+    }
+
     let triggerFxBurst = () => {};
     if (fxCanvas) {
       const fctx = fxCanvas.getContext('2d');
@@ -2303,14 +2608,20 @@
       window.addEventListener('resize', resizeFx);
 
       const palette = [bootP, bootS, bootGold, '#e2e8f0'];
-      const STAR_COUNT = 105;
+      const STAR_COUNT = bootFxMode === 'constellation' ? 72 : 105;
       const stars = Array.from({ length: STAR_COUNT }, (_, i) => ({
         x: (Math.random() - 0.5) * 2.2,
         y: (Math.random() - 0.5) * 2.2,
         z: Math.random() * 1.6 + 0.12,
+        px: Math.random() * (fw || 1280),
+        py: Math.random() * (fh || 720),
+        vx: (Math.random() - 0.5) * 0.75,
+        vy: (Math.random() - 0.5) * 0.75,
+        rainSpd: 1.8 + Math.random() * 3.8,
+        rainLen: 14 + Math.random() * 34,
         ang: Math.random() * Math.PI * 2,
-        rad: 0.14 + Math.random() * 0.72,
-        sz: 0.8 + Math.random() * 1.8,
+        rad: 0.12 + Math.random() * 0.74,
+        sz: 0.9 + Math.random() * 1.8,
         col: palette[i % palette.length],
         alpha: 0.35 + Math.random() * 0.55
       }));
@@ -2379,6 +2690,60 @@
             fctx.beginPath();
             fctx.moveTo(tx, ty);
             fctx.lineTo(px, py);
+            fctx.stroke();
+          } else if (currentStage < 5 && bootFxMode === 'constellation') {
+            // Neural Constellation Web: drifting glowing nodes linked by subtle energy filaments
+            s.px += s.vx;
+            s.py += s.vy;
+            if (s.px < 0) s.px = fw; else if (s.px > fw) s.px = 0;
+            if (s.py < 0) s.py = fh; else if (s.py > fh) s.py = 0;
+            fctx.fillStyle = s.col;
+            fctx.globalAlpha = s.alpha * 0.8;
+            fctx.beginPath();
+            fctx.arc(s.px, s.py, s.sz * 0.9, 0, Math.PI * 2);
+            fctx.fill();
+            for (let j = i + 1; j < stars.length; j++) {
+              const o = stars[j];
+              const dx = s.px - o.px;
+              const dy = s.py - o.py;
+              const dSq = dx * dx + dy * dy;
+              if (dSq < 15500) {
+                fctx.strokeStyle = s.col;
+                fctx.globalAlpha = (1 - dSq / 15500) * 0.22;
+                fctx.lineWidth = 0.8;
+                fctx.beginPath();
+                fctx.moveTo(s.px, s.py);
+                fctx.lineTo(o.px, o.py);
+                fctx.stroke();
+              }
+            }
+          } else if (currentStage < 5 && bootFxMode === 'aether_rain') {
+            // Luminous vertical Aether data streams gliding smoothly across the HUD
+            s.py -= s.rainSpd;
+            if (s.py < -s.rainLen) {
+              s.py = fh + s.rainLen;
+              s.px = Math.random() * fw;
+            }
+            fctx.strokeStyle = s.col;
+            fctx.globalAlpha = s.alpha * 0.55;
+            fctx.lineWidth = s.sz * 0.75;
+            fctx.beginPath();
+            fctx.moveTo(s.px, s.py);
+            fctx.lineTo(s.px, s.py + s.rainLen);
+            fctx.stroke();
+          } else if (currentStage < 5 && bootFxMode === 'spiral') {
+            // Swirling cosmic galaxy arm drift
+            s.ang += 0.004 + (0.003 / Math.max(0.2, s.rad));
+            const gx = cx + Math.cos(s.ang) * s.rad * fw * 0.56;
+            const gy = cy + Math.sin(s.ang) * s.rad * fh * 0.56;
+            const tx = cx + Math.cos(s.ang - 0.06) * s.rad * fw * 0.56;
+            const ty = cy + Math.sin(s.ang - 0.06) * s.rad * fh * 0.56;
+            fctx.strokeStyle = s.col;
+            fctx.globalAlpha = s.alpha * 0.65;
+            fctx.lineWidth = s.sz * 0.9;
+            fctx.beginPath();
+            fctx.moveTo(tx, ty);
+            fctx.lineTo(gx, gy);
             fctx.stroke();
           } else {
             // 3D depth star-warp (stretches into hyperspace streaks in Stage 6!)
@@ -2879,6 +3244,12 @@
       if (overrides.randomThemeOnBoot !== undefined) {
         localStorage.setItem(STORAGE_RANDOM_BOOT, String(st.randomThemeOnBoot));
       }
+      if (overrides.randomDeck !== undefined) {
+        localStorage.setItem(STORAGE_RANDOM_DECK, JSON.stringify(st.randomDeck));
+      }
+      if (overrides.bootFxDeck !== undefined) {
+        localStorage.setItem(STORAGE_BOOT_FX_DECK, JSON.stringify(st.bootFxDeck));
+      }
       if (overrides.userAvatar !== undefined) {
         localStorage.setItem(STORAGE_USER_AVATAR, overrides.userAvatar);
       }
@@ -2907,6 +3278,7 @@
     const wpUrl = resolveMediaUrl(st.customWp || mainTheme.wallpaper || '');
     const wpVideoUrl = resolveMediaUrl(st.customVideo || mainTheme.wallpaperVideo || '');
     const isVideoMode = Boolean(st.wpEnabled && st.wpMode === 'video' && wpVideoUrl);
+    const isSystemSealLive = Boolean(st.wpEnabled && !isVideoMode && !st.customWp && mainTheme.liveBg);
 
     const oldLegacy = document.getElementById('antigravity-ho-ly-chibi-theme');
     if (oldLegacy) oldLegacy.remove();
@@ -2969,7 +3341,7 @@
         background-image: none !important;
       }
       /* Browser split-pane hole cutout: keep wallpaper & L-glass visible outside [data-browser-hole] without covering live BrowserView */
-      ${isVideoMode ? '' : `
+      ${(isVideoMode || isSystemSealLive) ? '' : `
       body[data-has-browser-hole="true"] .agy-shell[data-agy-hole-active="1"]::after {
         content: "";
         position: absolute;
@@ -3531,6 +3903,295 @@
         background-repeat: no-repeat !important;
         box-shadow: 0 5px 18px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
       }
+    ` : effectPack === 'seal' ? `
+      /* SYSTEM SEAL LIVE EFFECT: Rotating Arcane Seal Aura + Sovereign Gold-Cyan-Violet Rim */
+      @keyframes agySealFloat {
+        0%, 100% { transform: translateY(0px) scale(1); filter: drop-shadow(0 0 7px ${bubbleTheme.glow}); }
+        50% { transform: translateY(-3.5px) scale(1.045); filter: drop-shadow(0 0 14px ${bubbleTheme.primary}) drop-shadow(0 0 6px rgba(251, 191, 36, 0.45)); }
+      }
+      @keyframes agySealBorder {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+      .agy-user-bubble-frame::before,
+      .surface-composer::before {
+        animation: agySealFloat 3.6s ease-in-out infinite;
+        will-change: transform;
+      }
+      .agy-user-bubble-frame,
+      .surface-composer {
+        background-size: 210% 210% !important;
+        animation: agySealBorder 7s ease-in-out infinite;
+      }
+      .agy-shell [data-testid="agent-response"] {
+        background-image:
+          linear-gradient(90deg, ${bubbleTheme.primary}, #fbbf24 55%, transparent),
+          linear-gradient(180deg, ${bubbleTheme.primary}, transparent),
+          linear-gradient(270deg, ${bubbleTheme.secondary}, transparent),
+          linear-gradient(0deg, ${bubbleTheme.secondary}, transparent) !important;
+        background-size: 46px 1.5px, 1.5px 32px, 46px 1.5px, 1.5px 32px !important;
+        background-position: top left, top left, bottom right, bottom right !important;
+        background-repeat: no-repeat !important;
+      }
+    ` : effectPack === 'eclipse' ? `
+      /* ECLIPSE CHRONO EFFECT: Solar Corona Pulse + Antique Gold Astrolabe Rim */
+      @keyframes agyEclipseFloat {
+        0%, 100% { transform: translateY(0px) scale(1); filter: drop-shadow(0 0 7px ${bubbleTheme.glow}); }
+        50% { transform: translateY(-3px) scale(1.05); filter: drop-shadow(0 0 15px ${bubbleTheme.primary}) drop-shadow(0 0 7px ${bubbleTheme.secondary}); }
+      }
+      @keyframes agyEclipseCorona {
+        0%, 100% { box-shadow: 0 5px 22px rgba(0, 0, 0, 0.54), 0 0 14px ${bubbleTheme.glow}; }
+        50% { box-shadow: 0 6px 26px rgba(0, 0, 0, 0.58), 0 0 22px ${bubbleTheme.glow}, 0 0 10px ${bubbleTheme.secondaryGlow || bubbleTheme.glow}; }
+      }
+      .agy-user-bubble-frame::before,
+      .surface-composer::before {
+        animation: agyEclipseFloat 3.8s ease-in-out infinite;
+        will-change: transform;
+      }
+      .agy-user-bubble-frame,
+      .surface-composer {
+        animation: agyEclipseCorona 4.6s ease-in-out infinite;
+      }
+      .agy-shell [data-testid="agent-response"] {
+        background-image:
+          linear-gradient(90deg, transparent 0%, ${bubbleTheme.primary} 32%, ${bubbleTheme.secondary} 68%, transparent 100%),
+          linear-gradient(90deg, ${bubbleTheme.primary}, transparent) !important;
+        background-size: 100% 1.5px, 42px 1.5px !important;
+        background-position: top center, bottom left !important;
+        background-repeat: no-repeat !important;
+      }
+    ` : effectPack === 'matrix' ? `
+      /* CYBER MATRIX EFFECT: Quantum Hex Pulse + Emerald Tactical Corner HUD */
+      @keyframes agyMatrixFloat {
+        0%, 100% { transform: translateY(0px) scale(1); filter: drop-shadow(0 0 7px ${bubbleTheme.glow}); }
+        50% { transform: translateY(-4px) scale(1.04); filter: drop-shadow(0 0 14px ${bubbleTheme.primary}) drop-shadow(0 0 6px ${bubbleTheme.secondary}); }
+      }
+      @keyframes agyMatrixShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+      .agy-user-bubble-frame::before,
+      .surface-composer::before {
+        animation: agyMatrixFloat 3.2s ease-in-out infinite;
+        will-change: transform;
+      }
+      .agy-user-bubble-frame,
+      .surface-composer {
+        background-size: 200% 200% !important;
+        animation: agyMatrixShift 5.8s ease-in-out infinite;
+      }
+      .agy-shell [data-testid="agent-response"] {
+        background-image:
+          linear-gradient(90deg, ${bubbleTheme.primary}, transparent),
+          linear-gradient(180deg, ${bubbleTheme.primary}, transparent),
+          linear-gradient(270deg, ${bubbleTheme.secondary}, transparent),
+          linear-gradient(0deg, ${bubbleTheme.secondary}, transparent) !important;
+        background-size: 38px 2px, 2px 28px, 38px 2px, 2px 28px !important;
+        background-position: top left, top left, bottom right, bottom right !important;
+        background-repeat: no-repeat !important;
+      }
+    ` : '';
+
+    const systemSealBgCss = isSystemSealLive ? `
+      /* ==================== LIVE ROTATING SYSTEM SEAL WALLPAPER (GPU-LIGHT SVG) ==================== */
+      @keyframes agySysCW { to { transform: rotate(360deg); } }
+      @keyframes agySysCCW { to { transform: rotate(-360deg); } }
+      @keyframes agySysBreath { 0%, 100% { transform: scale(0.95); opacity: 0.42; } 50% { transform: scale(1.06); opacity: 0.72; } }
+      @keyframes agySysShock { 0% { transform: scale(0.55); opacity: 0.48; } 100% { transform: scale(1.24); opacity: 0; } }
+      #agy-live-system-bg {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        overflow: hidden;
+      }
+      #agy-live-system-bg .agy-sysbg-aurora {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at calc(50% + var(--agy-sidebar-w, 256px) * 0.5) calc(50% + var(--agy-hdr-h, 40px) * 0.35), ${mainTheme.glow || 'rgba(56, 232, 255, 0.16)'} 0%, ${mainTheme.secondaryGlow || 'rgba(167, 139, 250, 0.10)'} 34%, transparent 62%),
+          radial-gradient(circle at 26% 74%, rgba(251, 191, 36, 0.06) 0%, transparent 48%);
+        animation: agySysBreath 8.5s ease-in-out infinite;
+      }
+      #agy-live-system-bg .agy-sysbg-stage {
+        position: absolute;
+        left: calc(50% + var(--agy-sidebar-w, 256px) * 0.5);
+        top: calc(50% + var(--agy-hdr-h, 40px) * 0.35);
+        width: min(620px, 76vh);
+        height: min(620px, 76vh);
+        transform: translate(-50%, -50%);
+        opacity: 0.88;
+      }
+      #agy-live-system-bg .agy-sysbg-shock {
+        position: absolute;
+        inset: 12%;
+        border-radius: 50%;
+        border: 1.4px solid ${mainTheme.primary || '#38e8ff'};
+        box-shadow: 0 0 18px rgba(56, 232, 255, 0.25);
+        opacity: 0;
+        animation: agySysShock 6.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      }
+      #agy-live-system-bg .agy-sysbg-shock.s2 {
+        border-color: #fbbf24;
+        animation-delay: 3.4s;
+      }
+      #agy-live-system-bg .agy-sysbg-radar {
+        position: absolute;
+        inset: 18%;
+        border-radius: 50%;
+        background: conic-gradient(from 0deg, transparent 0deg, transparent 275deg, rgba(56, 232, 255, 0.22) 342deg, rgba(56, 232, 255, 0.55) 359deg, transparent 360deg);
+        opacity: 0.34;
+        animation: agySysCW 11s linear infinite;
+        -webkit-mask-image: radial-gradient(circle, transparent 42%, black 44%, black 100%);
+        mask-image: radial-gradient(circle, transparent 42%, black 44%, black 100%);
+      }
+      #agy-live-system-bg .agy-sysbg-outer {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        animation: agySysCW 44s linear infinite;
+        filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.32));
+        will-change: transform;
+      }
+      #agy-live-system-bg .agy-sysbg-octa {
+        position: absolute; inset: 7%; width: 86%; height: 86%;
+        animation: agySysCCW 54s linear infinite;
+        filter: drop-shadow(0 0 8px rgba(56, 232, 255, 0.28));
+        will-change: transform;
+      }
+      #agy-live-system-bg .agy-sysbg-tri {
+        position: absolute; inset: 14%; width: 72%; height: 72%;
+        animation: agySysCW 34s linear infinite;
+        filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.26));
+        will-change: transform;
+      }
+      #agy-live-system-bg .agy-sysbg-arcs {
+        position: absolute; inset: 11%; width: 78%; height: 78%;
+        animation: agySysCW 16s linear infinite;
+        filter: drop-shadow(0 0 12px rgba(56, 232, 255, 0.42));
+        will-change: transform;
+      }
+      #agy-live-system-bg .agy-sysbg-inner {
+        position: absolute; inset: 21%; width: 58%; height: 58%;
+        animation: agySysCCW 22s linear infinite;
+        filter: drop-shadow(0 0 7px rgba(167, 139, 250, 0.36));
+        will-change: transform;
+      }
+      #agy-live-system-bg .agy-sysbg-orbits {
+        position: absolute; inset: 8%; border-radius: 50%;
+        animation: agySysCW 24s linear infinite;
+        will-change: transform;
+      }
+      #agy-live-system-bg .agy-sysbg-orbits .dot {
+        position: absolute; width: 6px; height: 6px; border-radius: 50%;
+      }
+      #agy-live-system-bg .agy-sysbg-orbits .dot.p { background: ${mainTheme.primary || '#38e8ff'}; box-shadow: 0 0 12px ${mainTheme.primary || '#38e8ff'}, 0 0 4px #fff; }
+      #agy-live-system-bg .agy-sysbg-orbits .dot.s { background: ${mainTheme.secondary || '#a78bfa'}; box-shadow: 0 0 12px ${mainTheme.secondary || '#a78bfa'}, 0 0 4px #fff; width: 5px; height: 5px; }
+      #agy-live-system-bg .agy-sysbg-orbits .dot.g { background: #fbbf24; box-shadow: 0 0 12px #fbbf24, 0 0 4px #fff; width: 5px; height: 5px; }
+      /* Eclipse Chrono Live Layers */
+      #agy-live-system-bg .agy-ec-corona {
+        position: absolute; inset: 27%; border-radius: 50%;
+        background: radial-gradient(circle at 50% 50%, rgba(10, 5, 8, 0.92) 44%, rgba(245, 158, 11, 0.52) 56%, rgba(251, 113, 133, 0.24) 70%, transparent 100%);
+        filter: blur(8px);
+        animation: agySysBreath 6.2s ease-in-out infinite;
+      }
+      #agy-live-system-bg .agy-ec-core-disc {
+        position: absolute; inset: 35.5%; border-radius: 50%;
+        background: radial-gradient(circle at 46% 42%, #180d12 0%, #090407 78%, #040204 100%);
+        border: 1.4px solid rgba(253, 230, 138, 0.65);
+        box-shadow: 0 0 26px rgba(245, 158, 11, 0.42), 0 0 44px rgba(251, 113, 133, 0.22), inset 0 0 24px rgba(0, 0, 0, 0.9);
+      }
+      #agy-live-system-bg .agy-ec-dial {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        animation: agySysCW 64s linear infinite;
+        filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.34));
+        will-change: transform;
+      }
+      #agy-live-system-bg .agy-ec-sunburst {
+        position: absolute; inset: 9%; width: 82%; height: 82%;
+        animation: agySysCCW 48s linear infinite;
+        will-change: transform;
+      }
+      #agy-live-system-bg .agy-ec-arm1 {
+        position: absolute; inset: 4%; width: 92%; height: 92%;
+        animation: agySysCCW 34s linear infinite;
+        filter: drop-shadow(0 0 9px rgba(253, 230, 138, 0.38));
+        will-change: transform;
+      }
+      #agy-live-system-bg .agy-ec-arm2 {
+        position: absolute; inset: 4%; width: 92%; height: 92%;
+        animation: agySysCW 26s linear infinite;
+        filter: drop-shadow(0 0 8px rgba(251, 113, 133, 0.36));
+        will-change: transform;
+      }
+      #agy-live-system-bg .agy-ec-hand-slow {
+        position: absolute; inset: 14%; width: 72%; height: 72%;
+        animation: agySysCW 30s linear infinite;
+        will-change: transform;
+      }
+      #agy-live-system-bg .agy-ec-hand-fast {
+        position: absolute; inset: 14%; width: 72%; height: 72%;
+        animation: agySysCW 14s linear infinite;
+        will-change: transform;
+      }
+
+      /* Cyber Matrix Live Layers */
+      #agy-live-system-bg .agy-mx-pulse {
+        position: absolute; inset: 13%; border-radius: 50%;
+        border: 1.4px solid ${mainTheme.primary || '#10b981'};
+        box-shadow: 0 0 16px rgba(16, 185, 129, 0.28);
+        opacity: 0;
+        animation: agySysShock 6.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      }
+      #agy-live-system-bg .agy-mx-pulse.p2 {
+        border-color: ${mainTheme.secondary || '#67e8f9'};
+        animation-delay: 3.1s;
+      }
+      #agy-live-system-bg .agy-mx-lidar {
+        position: absolute; inset: 12%; border-radius: 50%;
+        background: conic-gradient(from 0deg, transparent 0deg, transparent 286deg, rgba(16, 185, 129, 0.24) 344deg, rgba(103, 232, 249, 0.56) 359deg, transparent 360deg);
+        opacity: 0.36;
+        animation: agySysCW 9.5s linear infinite;
+        -webkit-mask-image: radial-gradient(circle, transparent 28%, black 30%, black 100%);
+        mask-image: radial-gradient(circle, transparent 28%, black 30%, black 100%);
+      }
+      #agy-live-system-bg .agy-mx-outer {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        animation: agySysCW 40s linear infinite;
+        filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.36));
+        will-change: transform;
+      }
+      #agy-live-system-bg .agy-mx-hex1 {
+        position: absolute; inset: 7%; width: 86%; height: 86%;
+        animation: agySysCCW 30s linear infinite;
+        filter: drop-shadow(0 0 9px rgba(16, 185, 129, 0.34));
+        will-change: transform;
+      }
+      #agy-live-system-bg .agy-mx-hex2 {
+        position: absolute; inset: 18%; width: 64%; height: 64%;
+        animation: agySysCW 18s linear infinite;
+        filter: drop-shadow(0 0 10px rgba(103, 232, 249, 0.42));
+        will-change: transform;
+      }
+      #agy-live-system-bg .agy-mx-reticle {
+        position: absolute; inset: 12%; width: 76%; height: 76%;
+        opacity: 0.72;
+      }
+      #agy-live-system-bg .agy-mx-packets {
+        position: absolute; inset: 8%; border-radius: 50%;
+        animation: agySysCCW 20s linear infinite;
+        will-change: transform;
+      }
+      #agy-live-system-bg .agy-mx-packets .pkt {
+        position: absolute; width: 6px; height: 6px; transform: rotate(45deg);
+      }
+      #agy-live-system-bg .agy-mx-packets .pkt.p { background: ${mainTheme.primary || '#10b981'}; box-shadow: 0 0 12px ${mainTheme.primary || '#10b981'}, 0 0 4px #fff; }
+      #agy-live-system-bg .agy-mx-packets .pkt.s { background: ${mainTheme.secondary || '#67e8f9'}; box-shadow: 0 0 12px ${mainTheme.secondary || '#67e8f9'}, 0 0 4px #fff; width: 5px; height: 5px; }
+
+      body.agy-doc-hidden #agy-live-system-bg,
+      body.agy-doc-hidden #agy-live-system-bg * {
+        animation-play-state: paused !important;
+      }
     ` : '';
 
     styleEl.textContent = `
@@ -3671,6 +4332,7 @@
       ${bubbleStickerCss}
       ${inputStickerCss}
       ${effectPackCss}
+      ${systemSealBgCss}
 
       @media (max-width: 640px) {
         .agy-user-bubble-frame::before,
@@ -3833,6 +4495,50 @@
     }
   }
 
+  function shuffleArray(arr) {
+    const out = arr.slice();
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = out[i];
+      out[i] = out[j];
+      out[j] = tmp;
+    }
+    return out;
+  }
+
+  function buildSmartThemeDeck(pool, prevThemeName) {
+    if (pool.length <= 1) return pool.slice();
+    const prevPair = (THEMES[prevThemeName] && THEMES[prevThemeName].pairId) || '';
+    let best = shuffleArray(pool);
+    // Try up to 16 shuffles so first item != prevTheme, != prevPair, and same-pair themes aren't adjacent
+    for (let attempt = 0; attempt < 16; attempt++) {
+      const cand = shuffleArray(pool);
+      const firstPair = (THEMES[cand[0]] && THEMES[cand[0]].pairId) || '';
+      const badStart = cand[0] === prevThemeName || (prevPair && firstPair === prevPair);
+      let badAdj = false;
+      for (let i = 1; i < cand.length; i++) {
+        const pA = (THEMES[cand[i - 1]] && THEMES[cand[i - 1]].pairId) || '';
+        const pB = (THEMES[cand[i]] && THEMES[cand[i]].pairId) || '';
+        if (pA && pA === pB) {
+          badAdj = true;
+          break;
+        }
+      }
+      best = cand;
+      if (!badStart && !badAdj) break;
+    }
+    // Hard guarantee: never start with the exact same theme as previous
+    if (best[0] === prevThemeName && best.length > 1) {
+      const swapIdx = best.findIndex((k) => k !== prevThemeName);
+      if (swapIdx > 0) {
+        const tmp = best[0];
+        best[0] = best[swapIdx];
+        best[swapIdx] = tmp;
+      }
+    }
+    return best;
+  }
+
   function getRandomPoolKeys() {
     const withMedia = THEME_KEYS.filter((k) => {
       const th = THEMES[k];
@@ -3854,8 +4560,23 @@
         }
       } catch (e) {}
     }
-    const choices = pool.length > 1 ? pool.filter((k) => k !== st.themeName) : pool;
-    const picked = choices[Math.floor(Math.random() * choices.length)] || pool[0];
+    const poolSet = new Set(pool);
+    // Persistent Fisher-Yates shuffle-bag: visit every single theme once before any theme can repeat!
+    let deck = Array.isArray(st.randomDeck)
+      ? st.randomDeck.filter((k, idx, a) => poolSet.has(k) && a.indexOf(k) === idx)
+      : [];
+    // If deck is empty or its next item matches the current theme, build a fresh non-repeating deck
+    if (deck.length === 0 || (deck.length === 1 && deck[0] === st.themeName)) {
+      deck = buildSmartThemeDeck(pool, st.themeName);
+    } else if (deck[0] === st.themeName && deck.length > 1) {
+      const swapIdx = deck.findIndex((k) => k !== st.themeName);
+      if (swapIdx > 0) {
+        const tmp = deck[0];
+        deck[0] = deck[swapIdx];
+        deck[swapIdx] = tmp;
+      }
+    }
+    const picked = deck.shift() || pool[0];
     const pickedTh = THEMES[picked] || {};
     const nextMode = (pickedTh.wallpaperVideo || pickedTh.mediaType === 'video') ? 'video' : 'image';
     try {
@@ -3867,7 +4588,8 @@
       wpMode: nextMode,
       wpEnabled: true,
       customWp: '',
-      customVideo: ''
+      customVideo: '',
+      randomDeck: deck
     });
     return picked;
   }
@@ -5260,7 +5982,8 @@
     lastUrl: location.href,
     urlChangedAt: 0,
     userCancelledAt: 0,
-    lastPlayedUrl: ''
+    lastPlayedUrl: '',
+    deck: []
   };
 
   function stopTaskAudio() {
@@ -5304,13 +6027,25 @@
     if (!ignoreEnabled && !st.taskVoiceEnabled) return;
     const pool = getMediaLibrary('audio');
     if (pool.length === 0) return;
-    const choices = pool.length > 1
-      ? pool.filter((item) => !isSameMediaUrl(item.url, taskVoiceState.lastPlayedUrl))
-      : pool;
-    const picked = choices[Math.floor(Math.random() * choices.length)] || pool[0];
-    if (!picked || !picked.url) return;
-    taskVoiceState.lastPlayedUrl = picked.url;
-    playOneShotTaskAudio(picked.url, st.taskVoiceVol);
+    const validUrls = pool.map((it) => it.url).filter(Boolean);
+    const validSet = new Set(validUrls.map((u) => canonicalMediaKey(u)));
+    taskVoiceState.deck = (taskVoiceState.deck || []).filter((u) => validSet.has(canonicalMediaKey(u)));
+    if (taskVoiceState.deck.length === 0) {
+      let fresh = shuffleArray(validUrls);
+      if (fresh.length > 1 && isSameMediaUrl(fresh[0], taskVoiceState.lastPlayedUrl)) {
+        const swapIdx = fresh.findIndex((u) => !isSameMediaUrl(u, taskVoiceState.lastPlayedUrl));
+        if (swapIdx > 0) {
+          const tmp = fresh[0];
+          fresh[0] = fresh[swapIdx];
+          fresh[swapIdx] = tmp;
+        }
+      }
+      taskVoiceState.deck = fresh;
+    }
+    const nextUrl = taskVoiceState.deck.shift() || validUrls[0];
+    if (!nextUrl) return;
+    taskVoiceState.lastPlayedUrl = nextUrl;
+    playOneShotTaskAudio(nextUrl, st.taskVoiceVol);
   }
   window.__ANTIGRAVITY_TEST_TASK_VOICE__ = () => playRandomTaskVoice(true);
 
@@ -5407,6 +6142,7 @@
   window.addEventListener('load', () => scheduleTitleBarSync(), { signal: window.__AGY_SCROLL_AC__.signal });
   window.addEventListener('focus', () => syncTitleBarOverlay(), { signal: window.__AGY_SCROLL_AC__.signal });
   document.addEventListener('visibilitychange', () => {
+    document.body && document.body.classList.toggle('agy-doc-hidden', Boolean(document.hidden));
     if (!document.hidden) syncTitleBarOverlay();
   }, { signal: window.__AGY_SCROLL_AC__.signal });
   document.querySelectorAll('[data-agy-scroll-bound]').forEach(el => delete el.dataset.agyScrollBound);

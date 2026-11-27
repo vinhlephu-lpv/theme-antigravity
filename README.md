@@ -25,13 +25,21 @@ Hệ thống vận hành theo mô hình hai lớp tách biệt nhằm giữ ổn
 
 ## Tính năng chính
 
-- **Chế độ nền Ảnh tĩnh và Video động tách biệt:** Quản lý riêng danh sách ảnh tĩnh và video đã tải lên; tự động lưu lịch sử mỗi khi chọn tệp mới, hỗ trợ xem trước và xóa trực tiếp từng mục khỏi ổ cứng.
-- **Preset mặc định đi kèm:** Bao gồm `Gemini-chan Live` (`themes/assets/wallpapergeminichan.mp4`), `Furina Live` (`themes/assets/furina-bg.mp4`), `WLOP Cosmic` và `Midnight Obsidian`.
+- **3 nền động Hệ Thống SVG 60fps thuần code (0 MB video decoder):**
+  - `System Seal Live` — Ma pháp trận Hệ Thống 6 lớp xoay trực tiếp (Lam – Tím – Vàng Kim).
+  - `Eclipse Chrono Live` — Đồng hồ thiên thể Nhật Thực & Quỹ đạo trăng (Đen Obsidian – Vàng Hổ Phách – Hồng Đỏ).
+  - `Cyber Matrix Live` — Lõi lượng tử Lục Giác & Radar LiDAR (Xanh Ngọc – Bạc Hà).
+  - Tự đồng tâm chuẩn xác theo vùng chat, tự giảm độ sáng theo thanh `Dim`, và tự tạm dừng animation khi ẩn cửa sổ.
+- **Preset đa dạng đi kèm:** `Reincarnation Nexus I`, `WLOP Cosmic`, `Midnight Obsidian`, cùng 2 nền video MP4 động `Gemini-chan Live` và `Furina Live`.
+- **Random không trùng lặp (Fisher-Yates Shuffle-Bag):** Tự động đổi 1 trong 7 nền có hình/hiệu ứng mỗi lần mở app (đi hết đủ vòng không lặp lại) + nút **🎲 Đổi nền ngẫu nhiên** ngay trong **Custom Theme Studio**.
+- **Màn hình khởi động (Boot HUD) 7 lớp & Canvas 60fps:**
+  - 4 chế độ hạt nền xoay vòng không trùng (`Starfield Warp`, `Neural Constellation`, `Aether Rain`, `Cosmic Spiral`), vụ nổ năng lượng khi bấm nút, xoáy nạp logo `SYNC 00% → 100%`, vòng xác thực 7 lớp và bước nhảy không gian Hyperspace.
+  - Đi kèm bộ **4 giọng hệ thống Tiếng Anh** có xử lý stereo delay + reverb pha lê (tự phát câu đầu khi mở app).
+- **Chế độ nền Ảnh tĩnh và Video động tách biệt:** Quản lý riêng danh sách ảnh tĩnh và video đã tải lên; tự động lưu lịch sử, xem trước và xóa trực tiếp khỏi ổ cứng.
 - **Hiệu ứng vẽ nét và loang màu (Sketch Reveal):** Trích xuất đường nét trực tiếp từ khung hình video hoặc ảnh nền hiện tại qua thuật toán biên cạnh đa kênh màu kết hợp làm mượt đường cong.
-- **Màn hình khởi động (Boot HUD):** Giao diện khởi động kèm âm thanh điều hướng, có thể bật/tắt hoặc phát lại từ bảng cài đặt.
 - **Câu chào tùy chỉnh (Custom Greeting):** Cho phép tự soạn danh sách câu chào ngẫu nhiên hiển thị trên màn hình hội thoại trống bằng bộ phông chữ viết tay đóng gói ngoại tuyến.
-- **Âm thanh báo hoàn thành tác vụ (Task Voice):** Hỗ trợ nạp nhiều tệp âm thanh (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`, `.flac`), phát ngẫu nhiên khi tác vụ kết thúc và giải phóng đối tượng âm thanh ngay sau khi phát xong.
-- **Tùy biến khung chat và ảnh đại diện:** Thay đổi khung nhập liệu, bong bóng tin nhắn, ảnh đại diện User/Agent (tự nén WebP), độ tối nền và độ mờ kính.
+- **Âm thanh báo hoàn thành tác vụ (Task Voice):** Kèm sẵn 4 câu giọng hệ thống Tiếng Anh phát theo cơ chế Shuffle-Bag không trùng, hỗ trợ nạp thêm `.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`, `.flac`.
+- **Ornament SVG & Hiệu ứng tin nhắn riêng cho từng chủ đề:** Huy hiệu nổi bám trên góc bong bóng chat và khung nhập liệu, avatar User/Agent (tự nén WebP), độ tối nền và độ mờ kính dựng sẵn (Zero Live Blur).
 
 ---
 
@@ -48,8 +56,8 @@ Hệ thống vận hành theo mô hình hai lớp tách biệt nhằm giữ ổn
 ### Bước 1: Tải mã nguồn
 
 ```bash
-git clone https://github.com/furinamikuvn/antigravity-custom-theme-mod.git
-cd antigravity-custom-theme-mod
+git clone https://github.com/vinhlephu-lpv/theme-antigravity.git
+cd theme-antigravity
 ```
 
 ### Bước 2: Biên dịch gói giao diện (`dist/theme_payload.js`)
@@ -73,6 +81,8 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\install-win.ps1"
 ```
 
 Lệnh trên tạo tệp `silent-start.vbs` cùng lối tắt khởi động trong thư mục `Startup` của Windows (`AntigravityCustomTheme.lnk`) và chạy daemon ngầm không hiện cửa sổ dòng lệnh. Khi tắt hoặc mở lại Antigravity, giao diện sẽ tự động được nạp lại.
+
+> **Mẹo dùng vĩnh viễn không cần mở terminal (Windows):** Chuột phải vào shortcut **Antigravity** (Desktop / Taskbar) → **Properties** → thêm ` --remote-debugging-port=9222 --autoplay-policy=no-user-gesture-required` vào cuối ô **Target** rồi nhấn **Apply → OK**. Từ đó mỗi lần mở app bình thường, theme + Boot Intro + giọng hệ thống sẽ tự kích hoạt hoàn toàn tự động.
 
 Nếu muốn chạy trực tiếp `.\scripts\install-win.ps1` ở các lần sau mà không cần thêm `-ExecutionPolicy Bypass`, có thể mở khóa chính sách script cho người dùng hiện tại một lần bằng lệnh:
 
